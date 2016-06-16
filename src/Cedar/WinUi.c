@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -406,6 +421,23 @@ void UpdateNotifyProcUi(UPDATE_CLIENT *c, UINT latest_build, UINT64 latest_date,
 		return;
 	}
 
+	if (u->UseSuppressFlag)
+	{
+		// Check the suppress flag
+		if (MsRegReadIntEx2(REG_LOCAL_MACHINE, PROTO_SUPPRESS_CLIENT_UPDATE_NOTIFICATION_REGKEY, 
+			PROTO_SUPPRESS_CLIENT_UPDATE_NOTIFICATION_REGVALUE, false, true))
+		{
+			// Supress the dialog
+			return;
+		}
+	}
+
+	if (u->CurrentlyDisabled)
+	{
+		// Hide
+		return;
+	}
+
 	// Show the update screen
 	Zero(&p, sizeof(p));
 
@@ -420,7 +452,7 @@ void UpdateNotifyProcUi(UPDATE_CLIENT *c, UINT latest_build, UINT64 latest_date,
 }
 
 // Initialize the update notification
-WINUI_UPDATE *InitUpdateUi(wchar_t *title, char *name, char *family_name, UINT64 current_date, UINT current_build, UINT current_ver, char *client_id)
+WINUI_UPDATE *InitUpdateUi(wchar_t *title, char *name, char *family_name, UINT64 current_date, UINT current_build, UINT current_ver, char *client_id, bool use_suppress_flag)
 {
 	WINUI_UPDATE *u;
 	UPDATE_CLIENT_SETTING s;
@@ -429,6 +461,10 @@ WINUI_UPDATE *InitUpdateUi(wchar_t *title, char *name, char *family_name, UINT64
 	if (title == NULL || name == NULL || current_build == 0 || current_ver == 0)
 	{
 		return NULL;
+	}
+	if (MsIsWine())
+	{
+		return false;
 	}
 	if (IsEmptyStr(family_name))
 	{
@@ -443,6 +479,7 @@ WINUI_UPDATE *InitUpdateUi(wchar_t *title, char *name, char *family_name, UINT64
 	u->CurrentDate = current_date;
 	u->CurrentBuild = current_build;
 	u->CurrentVer = current_ver;
+	u->UseSuppressFlag = use_suppress_flag;
 
 	Format(u->RegKey, sizeof(u->RegKey), WINUI_UPDATE_REGKEY, u->SoftwareName);
 
@@ -462,6 +499,18 @@ WINUI_UPDATE *InitUpdateUi(wchar_t *title, char *name, char *family_name, UINT64
 	}
 
 	return u;
+}
+
+// Disable the update notification UI
+void DisableUpdateUi(WINUI_UPDATE *u)
+{
+	// Validate arguments
+	if (u == NULL)
+	{
+		return;
+	}
+
+	u->CurrentlyDisabled = true;
 }
 
 // Release the update notification
@@ -956,6 +1005,12 @@ void ShowWizard(HWND hWndParent, WIZARD *w, UINT start_id)
 	{
 		// Aero Wizard can not be used If the color of Aero is disabled
 		// even in Vista or later (if the background color is not white)
+		w->IsAreoStyle = false;
+	}
+
+	if (MsIsWindows10())
+	{
+		// Windows 10 Icon Bug: Disable Aero Style!
 		w->IsAreoStyle = false;
 	}
 
@@ -2915,12 +2970,14 @@ void AdjustWindowAndControlSize(HWND hWnd, bool *need_resize, double *factor_x, 
 		*need_resize = false;
 		*factor_x = 1.0;
 		*factor_y = 1.0;
+		//Debug("// There is no need to adjust\n");
 		return;
 	}
 
 	// Calculate the adjustment amount
 	*factor_x = (double)dlgfont_x / (double)WINUI_DEFAULT_DIALOG_UNIT_X;
 	*factor_y = (double)dlgfont_y / (double)WINUI_DEFAULT_DIALOG_UNIT_Y;
+	//Debug("Factors: %f %f\n", *factor_x, *factor_y);
 
 	if (MsIsVista())
 	{
@@ -3090,9 +3147,57 @@ void InitDialogInternational(HWND hWnd, void *pparam)
 
 		if (hControl != NULL)
 		{
+			bool set_font = true;
 			HFONT hFont = GetDialogDefaultFontEx(param && ((DIALOG_PARAM *)param)->meiryo);
 
-			SetFont(hControl, 0, hFont);
+			if (MsIsWine())
+			{
+				char classname[MAX_PATH];
+				char parent_classname[MAX_PATH];
+				HWND hParent = GetParent(hControl);
+
+				Zero(classname, sizeof(classname));
+				Zero(parent_classname, sizeof(parent_classname));
+
+				GetClassNameA(hControl, classname, sizeof(classname));
+
+				if (hParent != NULL)
+				{
+					GetClassNameA(hParent, parent_classname, sizeof(parent_classname));
+				}
+
+				if (StrCmpi(classname, "edit") == 0)
+				{
+					set_font = false;
+				}
+
+				if (StrCmpi(classname, "combobox") == 0)
+				{
+					set_font = false;
+				}
+
+				if (StrCmpi(classname, "syslistview32") == 0)
+				{
+					set_font = false;
+				}
+
+				if (StrCmpi(classname, "sysheader32") == 0)
+				{
+					set_font = false;
+				}
+
+				if (StrCmpi(parent_classname, "SysIPAddress32") == 0 ||
+					StrCmpi(classname, "SysIPAddress32") == 0)
+				{
+					set_font = true;
+					hFont = GetFont("Tahoma", 8, false, false, false, false);
+				}
+			}
+
+			if (set_font)
+			{
+				SetFont(hControl, 0, hFont);
+			}
 
 			if (MsIsVista())
 			{
@@ -3673,6 +3778,11 @@ void AboutDlgInit(HWND hWnd, WINUI_ABOUT *a)
 	FormatText(hWnd, S_INFO2, BUILD_DATE_Y, a->Cedar->BuildInfo);
 
 	SetFont(hWnd, S_INFO3, GetFont("Arial", 7, false, false, false, false));
+
+	if (MsIsWine())
+	{
+		Disable(hWnd, B_LANGUAGE);
+	}
 
 	//DlgFont(hWnd, S_INFO4, 8, false);
 
@@ -9997,6 +10107,15 @@ UINT DlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, bool white_color
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+		if (true)
+		{
+			RECT rect1;
+
+			SetRect(&rect1, 0, 0, 100, 100);
+			MapDialogRect(hWnd, &rect1);
+			Debug("%u %u %u %u\n", rect1.left, rect1.right, rect1.top, rect1.bottom);
+		}
+
 		param = (void *)lParam;
 		SetParam(hWnd, param);
 

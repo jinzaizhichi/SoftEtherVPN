@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -146,6 +161,20 @@ struct ETH
 #endif // BRIDGE_BPF
 
 	VLAN *Tap;					// tap
+	bool Linux_IsAuxDataSupported;	// Is PACKET_AUXDATA supported
+
+	bool IsRawIpMode;			// RAW IP mode
+	SOCK *RawTcp, *RawUdp, *RawIcmp;	// RAW sockets
+	bool RawIp_HasError;
+	UCHAR RawIpMyMacAddr[6];
+	UCHAR RawIpYourMacAddr[6];
+	IP MyIP;
+	IP YourIP;
+	QUEUE *RawIpSendQueue;
+	IP MyPhysicalIP;
+	IP MyPhysicalIPForce;
+	UCHAR *RawIP_TmpBuffer;
+	UINT RawIP_TmpBufferSize;
 };
 
 #if defined( BRIDGE_BPF ) || defined( BRIDGE_PCAP )
@@ -164,7 +193,8 @@ bool IsEthSupportedLinux();
 bool IsEthSupportedSolaris();
 bool IsEthSupportedPcap();
 TOKEN_LIST *GetEthList();
-TOKEN_LIST *GetEthListLinux();
+TOKEN_LIST *GetEthListEx(UINT *total_num_including_hidden, bool enum_normal, bool enum_rawip);
+TOKEN_LIST *GetEthListLinux(bool enum_normal, bool enum_rawip);
 TOKEN_LIST *GetEthListSolaris();
 TOKEN_LIST *GetEthListPcap();
 ETH *OpenEth(char *name, bool local, bool tapmode, char *tapaddr);
@@ -186,6 +216,14 @@ bool EthSetMtu(ETH *e, UINT mtu);
 bool EthIsChangeMtuSupported(ETH *e);
 bool EthGetInterfaceDescriptionUnix(char *name, char *str, UINT size);
 bool EthIsInterfaceDescriptionSupportedUnix();
+
+ETH *OpenEthLinuxIpRaw();
+void CloseEthLinuxIpRaw(ETH *e);
+UINT EthGetPacketLinuxIpRaw(ETH *e, void **data);
+UINT EthGetPacketLinuxIpRawForSock(ETH *e, void **data, SOCK *s, UINT proto);
+void EthPutPacketLinuxIpRaw(ETH *e, void *data, UINT size);
+bool EthProcessIpPacketInnerIpRaw(ETH *e, PKT *p);
+void EthSendIpPacketInnerIpRaw(ETH *e, void *data, UINT size, USHORT protocol);
 
 #ifdef	UNIX_SOLARIS
 // Function prototype for Solaris

@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -133,6 +148,11 @@
 // Threshold number of registered items in the transmission queue for suppressing the L2TP Hello transmission
 #define	L2TP_HELLO_SUPRESS_MAX_THRETHORD_NUM_SEND_QUEUE		32
 
+// Quota
+#define	L2TP_QUOTA_MAX_NUM_TUNNELS_PER_IP		1000			// Number of L2TP sessions per IP address
+#define	L2TP_QUOTA_MAX_NUM_TUNNELS				30000			// Limit of the number of sessions
+#define	L2TP_QUOTA_MAX_NUM_SESSIONS_PER_TUNNEL	1024		// Max sessions in a tunnel
+
 // L2TP window size
 #define	L2TP_WINDOW_SIZE				16
 
@@ -169,6 +189,7 @@
 #define	L2TP_AVP_TYPE_V3_SESSION_ID_LOCAL	63	// Local Session ID
 #define	L2TP_AVP_TYPE_V3_SESSION_ID_REMOTE	64	// Remote Session ID
 #define	L2TP_AVP_TYPE_V3_PW_TYPE		68		// Pseudowire Type
+#define	L2TP_AVP_TYPE_V3_CIRCUIT_STATUS	71
 
 // Message Type value
 #define	L2TP_MESSAGE_TYPE_SCCRQ			1		// Start-Control-Connection-Request
@@ -227,6 +248,7 @@ struct L2TP_PACKET
 	bool HasOffset;								// Whether there is offset bit
 	bool IsPriority;							// Whether priority packet
 	bool IsZLB;									// Zero Length Bit
+	bool IsYamahaV3;							// L2TPv3 on YAMAHA
 	UINT Ver;									// Version
 	UINT Length;								// Length
 	UINT TunnelId;								// Tunnel ID
@@ -264,6 +286,7 @@ struct L2TP_TUNNEL
 {
 	bool IsV3;									// L2TPv3
 	bool IsCiscoV3;								// L2TPv3 for Cisco
+	bool IsYamahaV3;							// L2TPv3 for YAMAHA
 	IP ClientIp;								// Client IP address
 	UINT ClientPort;							// Client port number
 	IP ServerIp;								// Server IP address
@@ -313,12 +336,13 @@ struct L2TP_SERVER
 //// Function prototype
 L2TP_SERVER *NewL2TPServer(CEDAR *cedar);
 L2TP_SERVER *NewL2TPServerEx(CEDAR *cedar, IKE_SERVER *ike, bool is_ipv6, UINT crypt_block_size);
+UINT GetNumL2TPTunnelsByClientIP(L2TP_SERVER *l2tp, IP *client_ip);
 void SetL2TPServerSockEvent(L2TP_SERVER *l2tp, SOCK_EVENT *e);
 void FreeL2TPServer(L2TP_SERVER *l2tp);
 void StopL2TPServer(L2TP_SERVER *l2tp, bool no_wait);
 void ProcL2TPPacketRecv(L2TP_SERVER *l2tp, UDPPACKET *p);
 L2TP_PACKET *ParseL2TPPacket(UDPPACKET *p);
-BUF *BuildL2TPPacketData(L2TP_PACKET *pp);
+BUF *BuildL2TPPacketData(L2TP_PACKET *pp, L2TP_TUNNEL *t);
 L2TP_AVP *GetAVPValue(L2TP_PACKET *p, UINT type);
 L2TP_AVP *GetAVPValueEx(L2TP_PACKET *p, UINT type, UINT vendor_id);
 L2TP_TUNNEL *NewL2TPTunnel(L2TP_SERVER *l2tp, L2TP_PACKET *p, UDPPACKET *udp);
@@ -327,6 +351,7 @@ UINT GenerateNewTunnelIdEx(L2TP_SERVER *l2tp, IP *client_ip, bool is_32bit);
 void FreeL2TPTunnel(L2TP_TUNNEL *t);
 L2TP_TUNNEL *GetTunnelFromId(L2TP_SERVER *l2tp, IP *client_ip, UINT tunnel_id, bool is_v3);
 L2TP_TUNNEL *GetTunnelFromIdOfAssignedByClient(L2TP_SERVER *l2tp, IP *client_ip, UINT tunnel_id);
+L2TP_TUNNEL *GetTunnelFromIdOfAssignedByClientEx(L2TP_SERVER *l2tp, IP *client_ip, UINT tunnel_id, bool is_v3);
 void SendL2TPControlPacket(L2TP_SERVER *l2tp, L2TP_TUNNEL *t, UINT session_id, L2TP_PACKET *p);
 void SendL2TPControlPacketMain(L2TP_SERVER *l2tp, L2TP_TUNNEL *t, L2TP_QUEUE *q);
 void SendL2TPDataPacket(L2TP_SERVER *l2tp, L2TP_TUNNEL *t, L2TP_SESSION *s, void *data, UINT size);

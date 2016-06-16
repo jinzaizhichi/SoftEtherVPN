@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -151,6 +166,7 @@ static SW_OLD_MSI old_msi_vpnbridge[] =
 static char *sfx_vpn_server_bridge_files[] =
 {
 	"vpnsetup.exe",
+	"vpnsetup_x64.exe",
 	"vpnserver.exe",
 	"vpnserver_x64.exe",
 	"vpnbridge.exe",
@@ -164,6 +180,7 @@ static char *sfx_vpn_server_bridge_files[] =
 static char *sfx_vpn_client_files[] =
 {
 	"vpnsetup.exe",
+	"vpnsetup_x64.exe",
 	"vpnclient.exe",
 	"vpnclient_x64.exe",
 	"vpncmgr.exe",
@@ -2445,6 +2462,7 @@ void SwDefineTasks(SW *sw, SW_TASK *t, SW_COMPONENT *c)
 	wchar_t dir_startup[MAX_PATH];
 	wchar_t tmp1[MAX_SIZE], tmp2[MAX_SIZE];
 	SW_TASK_COPY *setup_exe;
+	SW_TASK_COPY *setup_exe_x64;
 	// Validate arguments
 	if (sw == NULL || t == NULL || c == NULL)
 	{
@@ -2482,6 +2500,10 @@ void SwDefineTasks(SW *sw, SW_TASK *t, SW_COMPONENT *c)
 	// Add the Setup program (themselves) to the copy list
 	Add(t->CopyTasks, (setup_exe = SwNewCopyTask(src_setup_exe_filename,
 		L"vpnsetup.exe", src_setup_exe_dir, sw->InstallDir, true, true)));
+
+	// Add vpnsetup_x64.exe to the copy list
+	Add(t->CopyTasks, (setup_exe_x64 = SwNewCopyTask(L"vpnsetup_x64.exe",
+		L"vpnsetup_x64.exe", src_setup_exe_dir, sw->InstallDir, true, true)));
 
 	// Generate the file processing list for each component
 	if (c->Id == SW_CMP_VPN_SERVER)
@@ -2655,7 +2677,7 @@ void SwDefineTasks(SW *sw, SW_TASK *t, SW_COMPONENT *c)
 		SW_TASK_COPY *vpninstall;
 		wchar_t *src_config_filename;
 
-		CombinePathW(tmp, sizeof(tmp), sw->InstallDir, L"backup.vpn_vpnclient.config");
+		CombinePathW(tmp, sizeof(tmp), sw->InstallDir, L"backup.vpn_client.config");
 		Add(t->SetSecurityPaths, CopyUniStr(tmp));
 
 		if (x64 == false)
@@ -3151,7 +3173,7 @@ bool SwInstallMain(SW *sw, WIZARD_PAGE *wp, SW_COMPONENT *c)
 	}
 
 	// Install the SeLow
-	if (SuIsSupportedOs())
+	if (SuIsSupportedOs(true))
 	{
 		// Only in the system mode
 		if (c->InstallService && sw->IsSystemMode)
@@ -3167,9 +3189,29 @@ bool SwInstallMain(SW *sw, WIZARD_PAGE *wp, SW_COMPONENT *c)
 
 			if (install_su)
 			{
-				SwPerformPrint(wp, _UU("SW_PERFORM_MSG_INSTALL_SELOW"));
+				bool ret;
 
-				SuInstallDriver(false);
+				SwPerformPrint(wp, _UU("SW_PERFORM_MSG_INSTALL_SELOW"));
+				ret = SuInstallDriver(false);
+
+				if (ret == false)
+				{
+					if (MsIs64BitWindows() && MsIsWindows10())
+					{
+						void *proc_handle = NULL;
+						wchar_t exe[MAX_PATH];
+
+						CombinePathW(exe, sizeof(exe), MsGetExeDirNameW(), L"vpnsetup_x64.exe");
+
+						if (MsExecuteEx2W(exe, L"/SUINSTMODE:yes", &proc_handle, true))
+						{
+							if (proc_handle != NULL)
+							{
+								MsWaitProcessExit(proc_handle);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -6478,6 +6520,7 @@ void SwParseCommandLine(SW *sw)
 		{"ISEASYINSTALLER", NULL, NULL, NULL, NULL, },
 		{"DISABLEAUTOIMPORT", NULL, NULL, NULL, NULL, },
 		{"ISWEBINSTALLER", NULL, NULL, NULL, NULL, },
+		{"SUINSTMODE", NULL, NULL, NULL, NULL, },
 	};
 	// Validate arguments
 	if (sw == NULL)
@@ -6505,6 +6548,7 @@ void SwParseCommandLine(SW *sw)
 			sw->LangNow = GetParamYes(o, "LANGNOW");
 			sw->SetLangAndReboot = GetParamYes(o, "SETLANGANDREBOOT");
 			sw->HideStartCommand = GetParamYes(o, "HIDESTARTCOMMAND");
+			sw->SuInstMode = GetParamYes(o, "SUINSTMODE");
 
 			// Special mode
 			if (sw->LanguageMode == false)
@@ -6573,6 +6617,15 @@ UINT SWExecMain()
 		{
 			// Success
 			sw->ExitCode = 0;
+		}
+	}
+	else if (sw->SuInstMode)
+	{
+		// SuInst mode
+		sw->ExitCode = 0;
+		if (SuInstallDriver(false) == false)
+		{
+			sw->ExitCode = SW_EXIT_CODE_INTERNAL_ERROR;
 		}
 	}
 	else

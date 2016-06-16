@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -114,11 +129,124 @@
 
 #define	FIFO_INIT_MEM_SIZE		4096
 #define	FIFO_REALLOC_MEM_SIZE	(65536 * 10)	// Exquisite value
-#define FIFO_REALLOC_MEM_SIZE_SMALL	65536
 
 #define	INIT_NUM_RESERVED		32
 
-static UINT fifo_default_realloc_mem_size = FIFO_REALLOC_MEM_SIZE;
+static UINT fifo_current_realloc_mem_size = FIFO_REALLOC_MEM_SIZE;
+
+// New PRand
+PRAND *NewPRand(void *key, UINT key_size)
+{
+	PRAND *r;
+	UCHAR dummy[256];
+	if (key == NULL || key_size == 0)
+	{
+		key = "DUMMY";
+		key_size = 5;
+	}
+
+	r = ZeroMalloc(sizeof(PRAND));
+
+	HashSha1(r->Key, key, key_size);
+
+	r->Rc4 = NewCrypt(key, key_size);
+
+	Zero(dummy, sizeof(dummy));
+
+	Encrypt(r->Rc4, dummy, dummy, 256);
+
+	return r;
+}
+
+// Free PRand
+void FreePRand(PRAND *r)
+{
+	if (r == NULL)
+	{
+		return;
+	}
+
+	FreeCrypt(r->Rc4);
+
+	Free(r);
+}
+
+// Generate PRand
+void PRand(PRAND *p, void *data, UINT size)
+{
+	if (p == NULL)
+	{
+		return;
+	}
+
+	Zero(data, size);
+
+	Encrypt(p->Rc4, data, data, size);
+}
+
+// Generate UINT PRand
+UINT PRandInt(PRAND *p)
+{
+	UINT r;
+	if (p == NULL)
+	{
+		return 0;
+	}
+
+	PRand(p, &r, sizeof(UINT));
+
+	return r;
+}
+
+// Check whether the specified key item is in the hash list
+bool IsInHashListKey(HASH_LIST *h, UINT key)
+{
+	// Validate arguments
+	if (h == NULL || key == 0)
+	{
+		return false;
+	}
+
+	if (HashListKeyToPointer(h, key) == NULL)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+// Search the item in the hash list with the key
+void *HashListKeyToPointer(HASH_LIST *h, UINT key)
+{
+	UINT num, i;
+	void **pp;
+	void *ret = NULL;
+	// Validate arguments
+	if (h == NULL || key == 0)
+	{
+		return NULL;
+	}
+
+	pp = HashListToArray(h, &num);
+	if (pp == NULL)
+	{
+		return NULL;
+	}
+
+	for (i = 0;i < num;i++)
+	{
+		void *p = pp[i];
+
+		if (POINTER_TO_KEY(p) == key)
+		{
+			ret = p;
+		}
+	}
+
+	Free(pp);
+
+	return ret;
+}
 
 // Lock the hash list
 void LockHashList(HASH_LIST *h)
@@ -208,17 +336,11 @@ void *SearchHash(HASH_LIST *h, void *t)
 	if (h->Entries[r] != NULL)
 	{
 		LIST *o = h->Entries[r];
-		UINT i;
+		void *r = Search(o, t);
 
-		for (i = 0;i < LIST_NUM(o);i++)
+		if (r != NULL)
 		{
-			void *p = LIST_DATA(o, i);
-
-			if (h->CompareProc(&p, &t) == 0)
-			{
-				ret = p;
-				break;
-			}
+			ret = r;
 		}
 	}
 
@@ -278,10 +400,10 @@ void AddHash(HASH_LIST *h, void *p)
 
 	if (h->Entries[r] == NULL)
 	{
-		h->Entries[r] = NewListFast(NULL);
+		h->Entries[r] = NewListFast(h->CompareProc);
 	}
 
-	Add(h->Entries[r], p);
+	Insert(h->Entries[r], p);
 
 	if (h->AllList != NULL)
 	{
@@ -1016,6 +1138,18 @@ void *PeekQueue(QUEUE *q)
 	return p;
 }
 
+// Get the number of queued items
+UINT GetQueueNum(QUEUE *q)
+{
+	// Validate arguments
+	if (q == NULL)
+	{
+		return 0;
+	}
+
+	return q->num_item;
+}
+
 // Get one
 void *GetNext(QUEUE *q)
 {
@@ -1089,6 +1223,21 @@ void InsertQueue(QUEUE *q, void *p)
 	WriteFifo(q->fifo, &p, sizeof(void *));
 
 	q->num_item++;
+
+	/*{
+		static UINT max_num_item;
+		static UINT64 next_tick = 0;
+		UINT64 now = Tick64();
+
+		max_num_item = MAX(q->num_item, max_num_item);
+
+		if (next_tick == 0 || next_tick <= now)
+		{
+			next_tick = now + (UINT64)1000;
+
+			printf("max_queue = %u\n", max_num_item);
+		}
+	}*/
 
 	// KS
 	KS_INC(KS_INSERT_QUEUE_COUNT);
@@ -2005,6 +2154,41 @@ int CompareInt64(void *p1, void *p2)
 	return COMPARE_RET(*v1, *v2);
 }
 
+// Randomize the contents of the list
+void RandomizeList(LIST *o)
+{
+	LIST *o2;
+	UINT i;
+	// Validate arguments
+	if (o == NULL)
+	{
+		return;
+	}
+
+	o2 = NewListFast(NULL);
+
+	while (LIST_NUM(o) != 0)
+	{
+		UINT num = LIST_NUM(o);
+		UINT i = Rand32() % num;
+		void *p = LIST_DATA(o, i);
+
+		Add(o2, p);
+		Delete(o, p);
+	}
+
+	DeleteAll(o);
+
+	for (i = 0;i < LIST_NUM(o2);i++)
+	{
+		void *p = LIST_DATA(o2, i);
+
+		Add(o, p);
+	}
+
+	ReleaseList(o2);
+}
+
 // Add an integer to the list
 void AddInt(LIST *o, UINT i)
 {
@@ -2248,6 +2432,28 @@ UINT PeekFifo(FIFO *f, void *p, UINT size)
 	return read_size;
 }
 
+// Read all data from FIFO
+BUF *ReadFifoAll(FIFO *f)
+{
+	BUF *buf;
+	UCHAR *tmp;
+	UINT size;
+	if (f == NULL)
+	{
+		return NewBuf();
+	}
+
+	size = FifoSize(f);
+	tmp = Malloc(size);
+	ReadFifo(f, tmp, size);
+
+	buf = MemToBuf(tmp, size);
+
+	Free(tmp);
+
+	return buf;
+}
+
 // Read from the FIFO
 UINT ReadFifo(FIFO *f, void *p, UINT size)
 {
@@ -2272,14 +2478,39 @@ UINT ReadFifo(FIFO *f, void *p, UINT size)
 
 	f->total_read_size += (UINT64)read_size;
 
-	if (f->size == 0)
+	if (f->fixed == false)
 	{
-		f->pos = 0;
+		if (f->size == 0)
+		{
+			f->pos = 0;
+		}
+	}
+
+	ShrinkFifoMemory(f);
+
+	// KS
+	KS_INC(KS_READ_FIFO_COUNT);
+
+	return read_size;
+}
+
+// Rearrange the memory
+void ShrinkFifoMemory(FIFO *f)
+{
+	// Validate arguments
+	if (f == NULL)
+	{
+		return;
+	}
+
+	if (f->fixed)
+	{
+		return;
 	}
 
 	// Rearrange the memory
-	if (f->pos >= FIFO_INIT_MEM_SIZE &&
-		f->memsize >= f->realloc_mem_size &&
+	if (f->pos >= FIFO_INIT_MEM_SIZE && 
+		f->memsize >= fifo_current_realloc_mem_size &&
 		(f->memsize / 2) > f->size)
 	{
 		void *new_p;
@@ -2295,11 +2526,25 @@ UINT ReadFifo(FIFO *f, void *p, UINT size)
 		f->p = new_p;
 		f->pos = 0;
 	}
+}
 
-	// KS
-	KS_INC(KS_READ_FIFO_COUNT);
+// Write data to the front of FIFO
+void WriteFifoFront(FIFO *f, void *p, UINT size)
+{
+	// Validate arguments
+	if (f == NULL || size == 0)
+	{
+		return;
+	}
 
-	return read_size;
+	if (f->pos < size)
+	{
+		PadFifoFront(f, size - f->pos);
+	}
+
+	Copy(((UCHAR *)f->p) + (f->pos - size), p, size);
+	f->pos -= size;
+	f->size += size;
 }
 
 // Write to the FIFO
@@ -2340,6 +2585,20 @@ void WriteFifo(FIFO *f, void *p, UINT size)
 
 	// KS
 	KS_INC(KS_WRITE_FIFO_COUNT);
+}
+
+// Add a padding before the head of fifo
+void PadFifoFront(FIFO *f, UINT size)
+{
+	// Validate arguments
+	if (f == NULL || size == 0)
+	{
+		return;
+	}
+
+	f->memsize += size;
+
+	f->p = ReAlloc(f->p, f->memsize);
 }
 
 // Clear the FIFO
@@ -2447,19 +2706,23 @@ void CleanupFifo(FIFO *f)
 // Initialize the FIFO system
 void InitFifo()
 {
-	fifo_default_realloc_mem_size = FIFO_REALLOC_MEM_SIZE;
+	fifo_current_realloc_mem_size = FIFO_REALLOC_MEM_SIZE;
 }
 
 // Create a FIFO
 FIFO *NewFifo()
 {
-	return NewFifoEx(0, false);
+	return NewFifoEx(false);
 }
 FIFO *NewFifoFast()
 {
-	return NewFifoEx(0, true);
+	return NewFifoEx(true);
 }
-FIFO *NewFifoEx(UINT realloc_mem_size, bool fast)
+FIFO *NewFifoEx(bool fast)
+{
+	return NewFifoEx2(fast, false);
+}
+FIFO *NewFifoEx2(bool fast, bool fixed)
 {
 	FIFO *f;
 
@@ -2480,13 +2743,7 @@ FIFO *NewFifoEx(UINT realloc_mem_size, bool fast)
 	f->size = f->pos = 0;
 	f->memsize = FIFO_INIT_MEM_SIZE;
 	f->p = Malloc(FIFO_INIT_MEM_SIZE);
-
-	if (realloc_mem_size == 0)
-	{
-		realloc_mem_size = fifo_default_realloc_mem_size;
-	}
-
-	f->realloc_mem_size = realloc_mem_size;
+	f->fixed = false;
 
 #ifndef	DONT_USE_KERNEL_STATUS
 //	TrackNewObj(POINTER_TO_UINT64(f), "FIFO", 0);
@@ -2499,20 +2756,20 @@ FIFO *NewFifoEx(UINT realloc_mem_size, bool fast)
 }
 
 // Get the default memory reclaiming size of the FIFO
-UINT GetFifoDefaultReallocMemSize()
+UINT GetFifoCurrentReallocMemSize()
 {
-	return fifo_default_realloc_mem_size;
+	return fifo_current_realloc_mem_size;
 }
 
 // Set the default memory reclaiming size of the FIFO
-void SetFifoDefaultReallocMemSize(UINT size)
+void SetFifoCurrentReallocMemSize(UINT size)
 {
 	if (size == 0)
 	{
 		size = FIFO_REALLOC_MEM_SIZE;
 	}
 
-	fifo_default_realloc_mem_size = size;
+	fifo_current_realloc_mem_size = size;
 }
 
 // Read a buffer from a file
@@ -3003,6 +3260,21 @@ bool WriteBufInt(BUF *b, UINT value)
 	return true;
 }
 
+// Write a short integer in the the buffer
+bool WriteBufShort(BUF *b, USHORT value)
+{
+	// Validate arguments
+	if (b == NULL)
+	{
+		return false;
+	}
+
+	value = Endian16(value);
+
+	WriteBuf(b, &value, sizeof(USHORT));
+	return true;
+}
+
 // Write a UCHAR to the buffer
 bool WriteBufChar(BUF *b, UCHAR uc)
 {
@@ -3067,6 +3339,23 @@ UINT ReadBufInt(BUF *b)
 		return 0;
 	}
 	return Endian32(value);
+}
+
+// Read a short integer from the buffer
+USHORT ReadBufShort(BUF *b)
+{
+	USHORT value;
+	// Validate arguments
+	if (b == NULL)
+	{
+		return 0;
+	}
+
+	if (ReadBuf(b, &value, sizeof(USHORT)) != sizeof(USHORT))
+	{
+		return 0;
+	}
+	return Endian16(value);
 }
 
 // Write the buffer to a buffer
@@ -3332,6 +3621,23 @@ BUF *ReadRemainBuf(BUF *b)
 	size = b->Size - b->Current;
 
 	return ReadBufFromBuf(b, size);
+}
+
+// Get the length of the rest
+UINT ReadBufRemainSize(BUF *b)
+{
+	// Validate arguments
+	if (b == NULL)
+	{
+		return 0;
+	}
+
+	if (b->Size < b->Current)
+	{
+		return 0;
+	}
+
+	return b->Size - b->Current;
 }
 
 // Clone the buffer
@@ -3693,12 +3999,6 @@ char B64_CharToCode(char c)
 	return 0;
 }
 
-// High-speed Malloc (currently not implemented)
-void *MallocFast(UINT size)
-{
-	return Malloc(size);
-}
-
 // Malloc
 void *Malloc(UINT size)
 {
@@ -3846,12 +4146,6 @@ void *ZeroMalloc(UINT size)
 void *ZeroMallocEx(UINT size, bool zero_clear_when_free)
 {
 	void *p = MallocEx(size, zero_clear_when_free);
-	Zero(p, size);
-	return p;
-}
-void *ZeroMallocFast(UINT size)
-{
-	void *p = MallocFast(size);
 	Zero(p, size);
 	return p;
 }

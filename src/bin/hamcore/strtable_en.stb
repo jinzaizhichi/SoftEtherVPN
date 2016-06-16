@@ -63,7 +63,7 @@ COMMON_UNKNOWN			(Unknown)
 # Protocol error strings
 ERR_UNKNOWN				An unknown error occurred.
 ERR_0					No error.
-ERR_1					Connection to the server failed. Check network connection and make sure that address and port number of destination sever are correct.
+ERR_1					Connection to the server failed. Check network connection and make sure that address and port number of destination server are correct.
 ERR_2					Protocol error occurred. Error was returned from the destination server.
 ERR_3					Connection has been disconnected.
 ERR_4					Protocol error occurred.
@@ -210,6 +210,7 @@ ERR_144					Unacceptable operation. Use the VPN Gate Control Panel to change the
 ERR_145					Unacceptable operation. Use the VPN Gate Utility to modify the connection setting for VPN Gate Public VPN Relay Servers.
 ERR_146					The VPN Gate Service is running inside the VPN Client program. You cannot stop the VPN Gate Service on this screen. Use the VPN Client Manager to enable or disable the VPN Gate Service.
 ERR_147					This feature is not supported. It hasn't been implemented yet on the open-source version of SoftEther VPN.
+ERR_148					The VPN connection was disconnected because the system is being suspended.
 
 # Concerning licenses
 LICENSE_INFO_URL		https://selinks.org/?new_license
@@ -231,10 +232,10 @@ TCPOPT_NOT_ADMIN		Users without administrator privileges cannot use the TCP Opti
 
 
 # Windows Vista / Windows 7 / Windows 8 Optimization
-VISTA_MMCSS_MSG			Do you wish to optimize Windows Vista / Windows 7 / Windows 8 for playing multimedia files with VPN? (e.g. videos, audios and streaming)
-VISTA_MMCSS_MSG_2		Optimization for Windows Vista / Windows 7 / Windows 8 with VPN has already done.\r\nDo you wish to remote optimized configuration?
+VISTA_MMCSS_MSG			Do you wish to optimize Windows Vista / Windows 7 / Windows 8 / Windows 10 for playing multimedia files with VPN? (e.g. videos, audios and streaming)
+VISTA_MMCSS_MSG_2		Optimization for Windows Vista / Windows 7 / Windows 8 / Windows 10 with VPN has already done.\r\nDo you wish to remove optimized configuration?
 VISTA_MMCSS_MSG_3		You cannot use optimization in currently environment.
-VISTA_MMCSS_MSG_4		You must have administrator privileges for this function.\r\nPlease note that in Windows Vista / Windows 7 / Windows 8 you should use "Run as Administrators" to execute program.
+VISTA_MMCSS_MSG_4		You must have administrator privileges for this function.\r\nPlease note that in Windows Vista / Windows 7 / Windows 8 / Windows 10 you should use "Run as Administrators" to execute program.
 VISTA_MMCSS_MSG_5		Optimization is finished.
 VISTA_MMCSS_MSG_6		Optimization configuration is removed.
 
@@ -549,6 +550,13 @@ HUB_AO_MaxLoggedPacketsPerMinute			Maximum number of logging target packets per 
 HUB_AO_DoNotSaveHeavySecurityLogs			Do not take heavy security log.
 HUB_AO_DropBroadcastsInPrivacyFilterMode	Drop broadcasting packets if the both source and destination session is PrivacyFilter mode.
 HUB_AO_DropArpInPrivacyFilterMode			Drop ARP packets if the both source and destination session is PrivacyFilter mode.
+HUB_AO_SuppressClientUpdateNotification		Suppress the update notification screen on the VPN Client.
+HUB_AO_FloodingSendQueueBufferQuota			Specify the quota limitation value (in bytes) of the sending queue buffer size which the flooding operation on the Virtual Hub can consume. The quota value is applied on the total length of sending queues of all active VPN sessions. Specify '0' to disable the quota. This option is effective to solve the out-of-memory problem on the network where there are many flooding packets.
+HUB_AO_AssignVLanIdByRadiusAttribute		Enable the VLAN ID dynamic assignment function. Each VPN session will be assigned its own VLAN ID by the RADIUS attribute value when the user is authenticated by the external RADIUS server unless the user object has a VLAN ID security policy. The RADIUS attribute with the name "Tunnel-Pvt-Group-ID" (ID = 81) will be used as the VLAN ID. The data type must be STRING.
+HUB_AO_DenyAllRadiusLoginWithNoVlanAssign	If you set this option to non-zero value, then all users, which RADIUS server returns no "Tunnel-Pvt-Group-ID" (ID = 81) value, will be denied to connect to the Virtual Hub. (Only if the values of AssignVLanIdByRadiusAttribute is non-zero value.)
+HUB_AO_SecureNAT_RandomizeAssignIp			If you set this option to non-zero value, then the Virtual DHCP Server of the SecureNAT function will choose an unused IP address randomly from the DHCP pool while the default behavior is to choose the first unused IP address.
+HUB_AO_DetectDormantSessionInterval			If you set this option to non-zero value, then the Virtual Hub will treat the VPN sessions, which have transmitted no packets for the last specified intervals (in seconds), as Dormant Sessions. The Virtual Hub will not flood packets, which should be flood, to any Dormant Sessions.
+HUB_AO_NoPhysicalIPOnPacketLog				If you set this option to non-zero value, then the physical IP addresses of VPN clients of either the source VPN session or the destination VPN session will not be recorded on the packet log file.
 
 
 # Concerning failed connection dialogs
@@ -1061,14 +1069,15 @@ SVC_HIDE_TRAY_MSG		This will hide the tasktray icons when starting %S in user mo
 
 
 # Concerning services (UNIX)
-UNIX_SVC_HELP			%S Service Program\nCopyright (c) SoftEther VPN Project. All Rights Reserved.\n\n%S Command Usage:\n %S start  - Start %S Service.\n %S stop   - Stop %S Service if the service is already started.\n\n
-UNIX_SVC_STARTED		%S Service Started.\n
-UNIX_SVC_STOPPING		Stopping %S Service...\n
-UNIX_SVC_STOPPED		%S Service Stopped.\n
-UNIX_SVC_STOP_FAILED	%S Service Stop Failed.\n
-UNIX_SVC_ALREADY_START	%S Service is already started.\nExecute "%S stop" to stop this service.\n
-UNIX_SVC_NOT_STARTED	%S Service is not yet started.\nExecute "%S start" to start this service.\n
-UNIX_SVC_ERROR_FORK		Failed to create child process for %S Service.\n
+UNIX_SVC_HELP			%S service program\nCopyright (c) SoftEther VPN Project. All Rights Reserved.\n\n%S command usage:\n %S start  - Start the %S service.\n %S stop   - Stop the %S service if the service has been already started.\n\n
+UNIX_SVC_STARTED		The %S service has been started.\n
+UNIX_SVC_STOPPING		Stopping the %S service ...\n
+UNIX_SVC_STOPPED		%S service has been stopped.\n
+UNIX_SVC_STOP_FAILED	Stopping %S service was failed.\n
+UNIX_SVC_ALREADY_START	%S service has been already started.\nRun the "%S stop" command to stop this service.\n
+UNIX_SVC_NOT_STARTED	%S service has not yet been started.\nRun the "%S start" to start this service.\n
+UNIX_SVC_ERROR_FORK		Failed to create child process for the %S service.\n
+UNIX_SVC_NONROOT		\nWarning: The current user context is non-root. It is recommended to run the VPN service by the root user. Although the VPN service may run under non-root users, some privilege-required functions (e.g. the local bridge function) need the root privilege.\n
 
 
 # Service definition (SoftEther VPN Client)
@@ -1209,7 +1218,8 @@ CM_LISTENER_ERROR		Error
 CM_DELETE_LISTENER_MSG	This will delete the Listener (TCP port %u). From now on, it will not be possible to connect to this port. \r\nDo you really want to do this?
 CM_STOP_LISTENER_MSG	This will stop the Listener (TCP port %u). Until Listener is restarted it will not be possible to connect to this port. \r\n\r\nDo you really want to do this?
 CM_CLOSE_BUTTON			Close
-CM_CERT_SET_MSG			A new server certificate has been set.
+CM_CERT_SET_MSG			A new server certificate has been set.\r\n\r\nIf you are using OpenVPN protocols, please mind that you may have to update the inline certificate data in the OpenVPN configuration file.
+
 CM_SHORTCUT_DISCONNECT	There is already an active connection to the specified connection destination. \r\n\r\nDo you want to disconnect?
 
 
@@ -1275,8 +1285,8 @@ SM_CONNINFO_CAPTION		Connection %s Information
 SM_CONNINFO_NAME		Connection Name
 SM_CONNINFO_TYPE		Connection Type
 SM_CONNINFO_HOSTNAME	Source Host Name
-SM_CONNINFO_IP			Source IP Address
-SM_CONNINFO_PORT		Source Port Number (TCP)
+SM_CONNINFO_IP			Client IP Address
+SM_CONNINFO_PORT		Client Port Number (TCP)
 SM_CONNINFO_TIME		Connection Start
 SM_CONNINFO_SERVER_STR	Server Product Name
 SM_CONNINFO_SERVER_VER	Sever Version
@@ -1440,26 +1450,26 @@ SM_SESS_STATUS_CAPTION	VPN Session "%S" Status
 SM_SESS_STATUS_USERNAME	User Name (Authentication)
 SM_SESS_STATUS_REALUSER	User Name (Database)
 SM_SESS_STATUS_GROUPNAME	Group Name
-SM_CLIENT_IP			Source IP Address
-SM_CLIENT_HOSTNAME		Source Host Name
-SM_NODE_CLIENT_NAME		Client Product Name
-SM_NODE_CLIENT_VER		Client Version
-SM_NODE_CLIENT_BUILD	Client Build
-SM_NODE_SERVER_NAME		Server Product Name
-SM_NODE_SERVER_VER		Server Version
-SM_NODE_SERVER_BUILD	Server Build
-SM_NODE_CLIENT_OS_NAME	Client OS Name
-SM_NODE_CLIENT_OS_VER	Client OS Version
-SM_NODE_CLIENT_OS_PID	Client OS Product ID
-SM_NODE_CLIENT_HOST		Client Host Name
-SM_NODE_CLIENT_IP		Client IP Address 
-SM_NODE_CLIENT_PORT		Client Port
-SM_NODE_SERVER_HOST		Server Host Name
-SM_NODE_SERVER_IP		Server IP Address
-SM_NODE_SERVER_PORT		Server Port
-SM_NODE_PROXY_HOSTNAME	Proxy Host Name
-SM_NODE_PROXY_IP		Proxy IP Address
-SM_NODE_PROXY_PORT		Proxy Port
+SM_CLIENT_IP			Client IP Address
+SM_CLIENT_HOSTNAME		Client Host Name
+SM_NODE_CLIENT_NAME		Client Product Name (Reported)
+SM_NODE_CLIENT_VER		Client Version (Reported)
+SM_NODE_CLIENT_BUILD	Client Build (Reported)
+SM_NODE_SERVER_NAME		Server Product Name (Reported)
+SM_NODE_SERVER_VER		Server Version (Reported)
+SM_NODE_SERVER_BUILD	Server Build (Reported)
+SM_NODE_CLIENT_OS_NAME	Client OS Name (Reported)
+SM_NODE_CLIENT_OS_VER	Client OS Version (Reported)
+SM_NODE_CLIENT_OS_PID	Client OS Product ID (Reported)
+SM_NODE_CLIENT_HOST		Client Host Name (Reported)
+SM_NODE_CLIENT_IP		Client IP Address  (Reported)
+SM_NODE_CLIENT_PORT		Client Port (Reported)
+SM_NODE_SERVER_HOST		Server Host Name (Reported)
+SM_NODE_SERVER_IP		Server IP Address (Reported)
+SM_NODE_SERVER_PORT		Server Port (Reported)
+SM_NODE_PROXY_HOSTNAME	Proxy Host Name (Reported)
+SM_NODE_PROXY_IP		Proxy IP Address (Reported)
+SM_NODE_PROXY_PORT		Proxy Port (Reported)
 SM_MAC_COLUMN_1			Session Name
 SM_MAC_COLUMN_2			MAC Address
 SM_MAC_COLUMN_3			Created at
@@ -1479,6 +1489,7 @@ SM_SNAT_STATUS			SecureNAT Operating Status
 SM_SNAT_NUM_SESSION		%u Session
 SM_SNAT_NUM_CLIENT		%u Client
 SM_SNAT_IS_KERNEL		Kernel-mode NAT is Active
+SM_SNAT_IS_RAW			Raw IP mode NAT is Active
 SM_BRIDGE_TOO_OLD_VER	The Local Bridge function is not supported by the version of the VPN Server that is currently connected. \r\nTry update to a new version.
 SM_BRIDGE_UNSUPPORTED	Unable to use the Local Bridge function with the operating system that this VPN Server is operating on. For the list of operating system that the Local Bridge function can be used on, refer to the online documentation of the VPN Server.
 SM_BRIDGE_WPCAP_REMOTE	In order to use the Local Bridge function on this VPN Server, you must install the WinPcap software. The software WinPcap is currently not installed on the server computer. \r\n\r\nTo continue the installation of the WinPcap software, you must start SoftEther VPN Server Manager on the server computer that is running VPN Server and then while connected to localhost (location of your own computer), have the Local Bridge Function Setting window displayed. \r\nTo continue, first exit this management session, and then, after starting SoftEther VPN Server Manager on the server computer, connect to localhost and continue the setting process. 
@@ -1640,7 +1651,10 @@ SM_FACTORY_DEFAULT_WARNING		This will perform a factory-reset on the VPN Server 
 SM_FACTORY_DEFAULT_PERFORMED	The factory-reset operation is performing on the server.\r\n\r\nPress OK to exit the current session of VPN Server Manager.\r\nAfter exiting, please re-start the VPN Server Manager and connect to the VPN Server again.\r\nThen you will see the VPN Server is reset.
 SM_AZURE_STATUS_CONNECTED		Status: Connected
 SM_AZURE_STATUS_NOT_CONNECTED	Status: Not Connected
-SM_NO_BRIDGE_NICS				No physical network adapters suitable for Local Bridge were found on the VPN server computer.\r\nIn order to create a Local Bridge, you have to install at least one physical network adapters on the computer.\r\nYou cannot use Wi-Fi adapters or 3G adapters for Local Bridge.\r\nPlease install a physical network adapter which is compatible to wired Ethernet.\r\n\r\nIf a recently-installed network adapter doesn't appear, once reboot the computer.\r\n\r\nIf the Local Bridge cannot be used anyway, you can use "SecureNAT Function" instead.\r\n\r\nIf you have a certain reason to use unusual network adapters (i.e. Wi-Fi adapters, 3G adapters or virtual adapters), set the "ShowAllInterfaces" variable on the "LocalBridgeList" directive to "true" and restart the VPN Server. Then such devices will appear on the list. (For advanced Windows users only.)
+SM_NO_BRIDGE_NICS				No physical network adapters suitable for Local Bridge were found on the VPN server computer.\r\nIn order to create a Local Bridge, you have to install at least one physical network adapters on the computer.\r\nYou cannot use Wi-Fi adapters or 3G adapters for Local Bridge.\r\nPlease install a physical network adapter which is compatible to wired Ethernet.\r\n\r\nIf a recently-installed network adapter doesn't appear, once reboot the computer.\r\n\r\nIf the Local Bridge cannot be used anyway, you can use "SecureNAT Function" instead.\r\n\r\nIf you have a certain reason to use unusual network adapters (i.e. Wi-Fi adapters, 3G adapters or virtual adapters), set the "ShowAllInterfaces" variable on the "LocalBridgeList" directive to "true" and restart the VPN Server. Then such devices will appear on the list. (For advanced Windows users only.)\r\n\r\nIf this error occurs after you upgraded Windows, please re-install SoftEther VPN Server or SoftEther VPN Bridge>
+SM_CERT_MESSAGE					The current SSL self-signed root certificate on this VPN Server is in the old format.\r\n\r\nSome versions of OpenVPN Connect for Android have a bug to misinterpret SSL certificates in the old format. It might cause the connection problem from OpenVPN Connect for Android to this VPN Server.\r\n\r\nIf you are planning to use OpenVPN Connect for Android as a VPN client, it is recommended to regenerate the SSL server certificate.\r\n\r\nDo you want to regenerate the server certificate now?
+SM_CERT_MESSAGE_CLI				--- Caution ---\r\n\r\nThe current SSL self-signed root certificate on this VPN Server is in the old format.\r\n\r\nSome versions of OpenVPN Connect for Android have a bug to misinterpret SSL certificates in the old format. It might cause the connection problem from OpenVPN Connect for Android to this VPN Server.\r\n\r\nIf you are planning to use OpenVPN Connect for Android as a VPN client, it is recommended to regenerate the SSL server certificate.\r\n\r\nTo regenerate and update the server certificate, execute the "ServerCertRegenerate" command after updating the VPN Server to the latest version.
+SM_CERT_NEED_ROOT				The specified SSL certificate is a sub-certificate which was issued by a CA (Certificate Authority).\r\n\r\nIf you are planning to support either Microsoft SSTP or OpenVPN protocol on this VPN server, you have to install the root certificate and all intermediate certificates (if exists) on this VPN Server.\r\n\r\nTo install these certificates, copy the root certificate and all intermediate certificate files (in the X.509 format) into the "chain_certs" subdirectory on the directory which is VPN Server has been installed on.\r\n\r\nIf you don't know how to obtain root and intermediate certificate files for your certificate authority (CA), please refer to the CA's web site or contact technical support staffs of the CA.
 
 
 # Concerning User-mode Router Administration Tools
@@ -1895,6 +1909,7 @@ LH_MAX_SESSION_2		Connection "%S": The maximum number of sessions (%u) that can 
 LH_NEW_SESSION			Connection "%S": The new session "%S" has been created. (IP address: %S, Port number: %u, Physical underlying protocol: "%S")
 LH_SET_SESSION			Session "%S": The parameter has been set. Max number of TCP connections: %u, Use of encryption: %s, Use of compression: %s, Use of Half duplex communication: %s, Timeout: %u seconds.
 LH_NODE_INFO			Session "%S": VPN Client details: (%s)
+LH_VLAN_ID				Session "%S": Assigned VLAN ID: %u
 LH_INVALID_SIGNATURE	Session "%S": The connected client sent invalid protocol data. Unable to establish normal communication with client. First check for problems with the connections and cabling of the network connecting the client and the server and then check there is not a special transparent packet re-writing device installed.
 LH_END_SESSION			Session "%S": The session has been terminated. The statistical information is as follows: Total outgoing data size: %I64u bytes, Total incoming data size: %I64u bytes.
 LH_BCAST_STORM			Session "%S": A large volume of broadcast packets has been detected. There are cases where packets are discarded based on the policy. The source MAC address is %S, the source IP address is %S, the destination IP address is %S. The number of broadcast packets is equal to or larger than %u items per 1 second (note this information is the result of mechanical analysis of part of the packets and could be incorrect).
@@ -2359,7 +2374,7 @@ S_INFO					A new Virtual Network Adapter will be created on the system.\r\nYou c
 STATIC1					Virtual Network Adapter &Name: 
 IDOK					&OK
 IDCANCEL				Cancel
-S_WIN8					Current operating system is Windows 8. The name of a Virtual Network Adapter must be 'VPN' or 'VPN2' to 'VPN127'. (Maximum 127 adapters can be created.)
+S_WIN8					The name of a Virtual Network Adapter must be 'VPN' or 'VPN2' to 'VPN127'. (Maximum 127 adapters can be created.)
 
 
 PREFIX					D_CM_TRUST
@@ -2858,7 +2873,7 @@ S_TCP_1					Minimum
 S_TCP_2					Maximum
 S_TCP_3					Source Port:
 S_TCP_5					Destination Port:
-S_TCP_7					The blank port number field matches any ports.\r\It will apply to packets that match only the minimum value when the minimum value is specified but the maximum value is not.
+S_TCP_7					The blank port number field matches any ports.\r\nIt will apply to packets that match only the minimum value when the minimum value is specified but the maximum value is not.
 STATIC11				Filtering Options for Users or Groups
 STATIC11_OLD			Filtering Options for Users
 STATIC12				This access list will be applied only to the packets that for specific users, groups send or receive.
@@ -3832,7 +3847,7 @@ S_TOOL					Sample File Generating Tool for OpenVPN Clients
 S_TOOL2					Making a OpenVPN Client configuration file is a very difficult job. You can use this tool to generate an appropriate OpenVPN Client configuration file. The generated configuration sample can be used immediately.
 B_CONFIG				Generate a Sample &Configuration File for OpenVPN Clients
 S_2						Microsoft SSTP VPN Clone Server Function
-S_3						This VPN Server has the clone functions of MS-SSTP VPN Server which is on Windows Server 2008 / 2012 by Microsoft Corporation.\r\nBuilt-in MS-SSTP Clients on Windows Vista / 7 / 8 / RT can connect to this VPN Server.
+S_3						This VPN Server has the clone functions of MS-SSTP VPN Server which is on Windows Server 2008 / 2012 by Microsoft Corporation.\r\nBuilt-in MS-SSTP Clients on Windows Vista / 7 / 8 / RT / 10 can connect to this VPN Server.
 R_SSTP					Enable &MS-SSTP VPN Clone Server Function
 S_SSTP					The value of CN (Common Name) on the SSL certificate of VPN Server must match to the hostname specified on the client, and that certificate must be in the trusted list on the client. For details refer the Microsoft's documents.
 S_4						The manner to specify a username to connect to the Virtual Hub, and the selection rule of default Hub by using these clone server functions are same to the IPsec Server functions.
@@ -4201,7 +4216,7 @@ CMD_SWITCH_SELECT		Sw&itch Selection
 # [View] menu
 CMD_TOP_VIEW			&View
 CMD_STATUSBAR			Show &Status Bar
-CMD_VISTASTYLE			Windows Vista / Windows 7 Styles
+CMD_VISTASTYLE			Windows Vista / 7 / 8 / 10 Styles
 CMD_SHOWPORT			Show &Ports on Connection List
 CMD_TRAYICON			Show Icons on &Task Tray
 CMD_ICON				&Icon
@@ -4226,7 +4241,7 @@ CMD_PASSWORD			Set &Password...\tCtrl+P
 CMD_TRUST				Manage &Trusted CA Certificate List\tCtrl+R
 CMD_NETIF				&Network Device Status...
 CMD_TCPIP				TCP Optimization &Utility...
-CMD_MMCSS				Optimization for Windows &Vista / 7 / 8...
+CMD_MMCSS				Optimization for Windows &Vista / 7 / 8 / 10...
 CMD_TRAFFIC				Network T&raffic Speed Test Tool...\tCtrl+Q 
 CMD_CM_SETTING			Switch Operation &Mode...
 CMD_LANGUAGE			&Language Settings...
@@ -4289,7 +4304,7 @@ CMD_UNKNOWN_PARAM		There is no description for this parameter.
 
 # Strings being used within console system
 CMD_HELP_1				You can use the following %u commands: 
-CMD_HELP_2				To reference the usage for each command, input "command name /?" to view a help.
+CMD_HELP_2				To reference the usage for each command, input "command name ?" to view a help.
 CMD_EVAL_MIN_MAX		You must specify an integer in the range from %u to %u for the value. 
 CMD_PROMPT				Enter a value: 
 CMD_EVAL_NOT_EMPTY		You cannot make a blank specification.
@@ -5454,7 +5469,7 @@ CMD_AccessAdd_Prompt_TCPSTATE		TCP Connection State (Established/Unestablished):
 # AccessAddEx command
 CMD_AccessAddEx			Add Extended Access List Rules (IPv4: Delay, Jitter and Packet Loss Generating)
 CMD_AccessAddEx_Help	Use this to add a new rule to the access list of the currently managed Virtual Hub. You can set to generate delays, jitters and packet losses when a packet is passing via the Virtual Hub. \nThe access list is a set of packet file rules that are applied to packets that flow through the Virtual Hub. You can register multiple rules in an access list and you can also define an priority for each rule. All packets are checked for the conditions specified by the rules registered in the access list and based on the operation that is stipulated by the first matching rule, they either pass or are discarded. Packets that do not match any rule are implicitly allowed to pass. You can also use the AccessAddEx command to generate delays, jitters and packet losses. \nThis command cannot be run on VPN Bridge. \nYou cannot execute this command for Virtual Hubs of VPN Servers operating as a member server on a cluster.
-CMD_AccessAddEx_Args	AccessAddEx [pass|discard] [/MEMO:memo] [/PRIORITY:priority] [/SRCUSERNAME:username] [/DESTUSERNAME:username] [/SRCMAC:mac/mask] [/DESTMAC:mac/mask] [/SRCIP:ip/mask] [/DESTIP:ip/mask] [/PROTOCOL:tcp|udp|icmpv4|icmpv6|ip|num] [/SRCPORT:start-end] [/DESTPORT:start-end] [/TCPSTATE: established|unestablished] [/DELAY:delay_millisec] [/JITTER:jitter_percent] [/LOSS:loss_percent]
+CMD_AccessAddEx_Args	AccessAddEx [pass|discard] [/MEMO:memo] [/PRIORITY:priority] [/SRCUSERNAME:username] [/DESTUSERNAME:username] [/SRCMAC:mac/mask] [/DESTMAC:mac/mask] [/SRCIP:ip/mask] [/DESTIP:ip/mask] [/PROTOCOL:tcp|udp|icmpv4|icmpv6|ip|num] [/SRCPORT:start-end] [/DESTPORT:start-end] [/TCPSTATE: established|unestablished] [/DELAY:delay_millisec] [/JITTER:jitter_percent] [/LOSS:loss_percent] [/REDIRECTURL:url]
 CMD_AccessAddEx_[pass|discard]	When a packet matches this rule condition, this operation is decided. When pass is specified, the packet is allowed to pass, and when discard is specified, the packet is discarded. The setting of delays, jitters and packet losses is applied if the action is pass.
 CMD_AccessAddEx_MEMO	Specify a description (memo) for this rule.
 CMD_AccessAddEx_PRIORITY	Specify an integer of 1 or higher to indicate the priority of the rule. Higher priority is given to rules with the lower priority values.
@@ -5471,6 +5486,7 @@ CMD_AccessAddEx_TCPSTATE		Specify TCP connection state as a rule. Use Establishe
 CMD_AccessAddEx_DELAY	Set this value to generate delays when packets is passing. Specify the delay period in milliseconds. Specify 0 means no delays to generate. The delays must be 10000 milliseconds at most.
 CMD_AccessAddEx_JITTER	Set this value to generate jitters when packets is passing. Specify the ratio of fluctuation of jitters within 0% to 100% range. Specify 0 means no jitters to generate.
 CMD_AccessAddEx_LOSS	Set this value to generate packet losses when packets is passing. Specify the ratio of packet losses within 0% to 100% range. Specify 0 means no packet losses to generate.
+CMD_AccessAddEx_REDIRECTURL	The specified URL will be mandatory replied to the client as a response for TCP connecting request packets which matches the conditions of this access list entry via this Virtual Hub. To use this setting, you can enforce the web browser of the VPN Client computer to show the specified web site when that web browser tries to access the specific IP address.
 CMD_AccessAddEx_Prompt_DELAY	Delays to Generate (in milliseconds: 0 - 10000): 
 CMD_AccessAddEx_Prompt_JITTER	Fluctuation of Jitters to Generate (Percent: 0 - 100): 
 CMD_AccessAddEx_Prompt_LOSS		Ratio of Packet Losses (Percent: 0 - 100): 
@@ -5515,7 +5531,7 @@ CMD_AccessAdd6_Prompt_TCPSTATE		TCP Connection State (Established/Unestablished)
 # AccessAddEx6 command
 CMD_AccessAddEx6			Add Extended Access List Rules (IPv6: Delay, Jitter and Packet Loss Generating)
 CMD_AccessAddEx6_Help	Use this to add a new rule to the access list of the currently managed Virtual Hub. You can set to generate delays, jitters and packet losses when a packet is passing via the Virtual Hub. \nThe access list is a set of packet file rules that are applied to packets that flow through the Virtual Hub. You can register multiple rules in an access list and you can also define a priority for each rule. All packets are checked for the conditions specified by the rules registered in the access list and based on the operation that is stipulated by the first matching rule, they either pass or are discarded. Packets that do not match any rule are implicitly allowed to pass. You can also use the AccessAddEx6 command to generate delays, jitters and packet losses. \nThis command cannot be run on VPN Bridge. \nYou cannot execute this command for Virtual Hubs of VPN Servers operating as a member server on a cluster.
-CMD_AccessAddEx6_Args	AccessAddEx6 [pass|discard] [/MEMO:memo] [/PRIORITY:priority] [/SRCUSERNAME:username] [/DESTUSERNAME:username] [/SRCMAC:mac/mask] [/DESTMAC:mac/mask] [/SRCIP:ip/mask] [/DESTIP:ip/mask] [/PROTOCOL:tcp|udp|icmpv4|icmpv6|ip|num] [/SRCPORT:start-end] [/DESTPORT:start-end] [/TCPSTATE: established|unestablished] [/DELAY:delay_millisec] [/JITTER:jitter_percent] [/LOSS:loss_percent]
+CMD_AccessAddEx6_Args	AccessAddEx6 [pass|discard] [/MEMO:memo] [/PRIORITY:priority] [/SRCUSERNAME:username] [/DESTUSERNAME:username] [/SRCMAC:mac/mask] [/DESTMAC:mac/mask] [/SRCIP:ip/mask] [/DESTIP:ip/mask] [/PROTOCOL:tcp|udp|icmpv4|icmpv6|ip|num] [/SRCPORT:start-end] [/DESTPORT:start-end] [/TCPSTATE: established|unestablished] [/DELAY:delay_millisec] [/JITTER:jitter_percent] [/LOSS:loss_percent] [/REDIRECTURL:url]
 CMD_AccessAddEx6_[pass|discard]	When a packet matches this rule condition, this operation is decided. When pass is specified, the packet is allowed to pass, and when discard is specified, the packet is discarded. The setting of delays, jitters and packet losses is applied if the action is pass.
 CMD_AccessAddEx6_MEMO	Specify a description (memo) for this rule.
 CMD_AccessAddEx6_PRIORITY	Specify an integer of 1 or higher to indicate the priority of the rule. Higher priority is given to rules with the lower priority values.
@@ -5532,6 +5548,7 @@ CMD_AccessAddEx6_TCPSTATE		Specify TCP connection state as a rule. Use Establish
 CMD_AccessAddEx6_DELAY	Set this value to generate delays when packets is passing. Specify the delay period in milliseconds. Specify 0 means no delays to generate. The delays must be 10000 milliseconds at most.
 CMD_AccessAddEx6_JITTER	Set this value to generate jitters when packets is passing. Specify the ratio of fluctuation of jitters within 0% to 100% range. Specify 0 means no jitters to generate.
 CMD_AccessAddEx6_LOSS	Set this value to generate packet losses when packets is passing. Specify the ratio of packet losses within 0% to 100% range. Specify 0 means no packet losses to generate.
+CMD_AccessAddEx6_REDIRECTURL	The specified URL will be mandatory replied to the client as a response for TCP connecting request packets which matches the conditions of this access list entry via this Virtual Hub. To use this setting, you can enforce the web browser of the VPN Client computer to show the specified web site when that web browser tries to access the specific IP address.
 CMD_AccessAddEx6_Prompt_DELAY	Delays to Generate (in milliseconds: 0 - 10000): 
 CMD_AccessAddEx6_Prompt_JITTER	Fluctuation of Jitters to Generate (Percent: 0 - 100): 
 CMD_AccessAddEx6_Prompt_LOSS		Ratio of Packet Losses (Percent: 0 - 100): 
@@ -6212,7 +6229,7 @@ CMD_OpenVpnMakeConfig_ERROR			The sample setting files were unable to be saved a
 
 # SstpEnable command
 CMD_SstpEnable			Enable / Disable Microsoft SSTP VPN Clone Server Function
-CMD_SstpEnable_Help		This VPN Server has the clone functions of MS-SSTP VPN Server which is on Windows Server 2008 / 2012 by Microsoft Corporation. Standard MS-SSTP Clients in Windows Vista / 7 / 8 / RT can connect to this VPN Server.\n\n[Caution]\nThe value of CN (Common Name) on the SSL certificate of VPN Server must match to the hostname specified on the client, and that certificate must be in the trusted list on the SSTP VPN client. For details refer the Microsoft's documents.\nYou can use the ServerCertRegenerate command to replace the current certificate on the VPN Server to a new self-signed certificate which has the CN (Common Name) value in the fields. In that case, you have to register such a new self-signed certificate on the SSTP VPN Client as a trusted root certificate. If you do not want to do such a bother tasks, please consider to purchase a SSL certificate provided by commercial authority such as VeriSign or GlobalSign.\n\nThe manner to specify a username to connect to the Virtual Hub, and the selection rule of default Hub by using this clone server functions are same to the IPsec Server functions. For details, please see the help of the IPsecEnable command.\n\nTo execute this command, you must have VPN Server administrator privileges. \nThis command cannot be run on VPN Bridge.\nYou cannot execute this command for Virtual Hubs of VPN Servers operating as a cluster.
+CMD_SstpEnable_Help		This VPN Server has the clone functions of MS-SSTP VPN Server which is on Windows Server 2008 / 2012 by Microsoft Corporation. Standard MS-SSTP Clients in Windows Vista / 7 / 8 / RT / 10 can connect to this VPN Server.\n\n[Caution]\nThe value of CN (Common Name) on the SSL certificate of VPN Server must match to the hostname specified on the client, and that certificate must be in the trusted list on the SSTP VPN client. For details refer the Microsoft's documents.\nYou can use the ServerCertRegenerate command to replace the current certificate on the VPN Server to a new self-signed certificate which has the CN (Common Name) value in the fields. In that case, you have to register such a new self-signed certificate on the SSTP VPN Client as a trusted root certificate. If you do not want to do such a bother tasks, please consider to purchase a SSL certificate provided by commercial authority such as VeriSign or GlobalSign.\n\nThe manner to specify a username to connect to the Virtual Hub, and the selection rule of default Hub by using this clone server functions are same to the IPsec Server functions. For details, please see the help of the IPsecEnable command.\n\nTo execute this command, you must have VPN Server administrator privileges. \nThis command cannot be run on VPN Bridge.\nYou cannot execute this command for Virtual Hubs of VPN Servers operating as a cluster.
 CMD_SstpEnable_Args		SstpEnable [yes|no]
 CMD_SstpEnable_[yes|no]	Specify yes to enable the Microsoft SSTP VPN Clone Server Function. Specify no to disable.
 CMD_SstpEnable_Prompt_[yes|no]	Enables SSTP VPN Clone Server Function (yes / no): 
@@ -6779,7 +6796,7 @@ CMD_RemoteDisable_Args	RemoteDisable
 
 
 # MakeCert command
-CMD_MakeCert			Create New X.509 Certificate and Private Key
+CMD_MakeCert			Create New X.509 Certificate and Private Key (1024 bit)
 CMD_MakeCert_Help		Use this to create a new X.509 certificate and private key and save it as a file. \nThe algorithm used to create the public key and private key of the certificate is RSA 1024 bit. \nYou can choose to create a root certificate (self-signed certificate) or a certificate signed by another certificate. To create a certificate that is signed by another certificate, you require a private key file (base 64 encoded) that is compatible with the certificate that uses the signature (X.509 format file). \n\nWhen creating a certificate, you can specify the following: Name (CN), Organization (O), Organization Unit (OU), Country (C), State (ST), Locale (L), Serial Number, and Expiration Date. \nThe created certificate will be saved as an X.509 format file and the private key file will be saved in a Base 64 encoded RSA 1024 bit format file. \n\nThe MakeCert command is a tool that provides the most rudimentary function for creating certificates. If you want to create a more substantial certificate, we recommend that you use either free software such as OpenSSL, or commercial CA (certificate authority) software. \n\nNote: This command can be called from the SoftEther VPN Command Line Management Utility. You can also execute this command while connected to the current VPN Server or VPN Client in Administration Mode but, what actually performs the RSA computation, generates the certificate data and saves it to file is the computer on which the command is running, and all this is executed in a context that has absolutely no relationship to the computer that is the destination of the Administration Mode connection.
 CMD_MakeCert_Args		MakeCert [/CN:cn] [/O:o] [/OU:ou] [/C:c] [/ST:st] [/L:l] [/SERIAL:serial] [/EXPIRES:expires] [/SIGNCERT:signcert] [/SIGNKEY:signkey] [/SAVECERT:savecert] [/SAVEKEY:savekey]
 CMD_MakeCert_CN			Specify the Name (CN) item of the certificate to create. You can specify "none".
@@ -6809,6 +6826,24 @@ CMD_MakeCert_ERROR_SIGNKEY		Either it is not possible to read the certificate or
 CMD_MakeCert_ERROR_GEN_FAILED	Creation of certificate and private key failed.
 
 
+# MakeCert2048 command
+CMD_MakeCert2048			Create New X.509 Certificate and Private Key (2048 bit)
+CMD_MakeCert2048_Help		Use this to create a new X.509 certificate and private key and save it as a file. \nThe algorithm used to create the public key and private key of the certificate is RSA 2048 bit. \nYou can choose to create a root certificate (self-signed certificate) or a certificate signed by another certificate. To create a certificate that is signed by another certificate, you require a private key file (base 64 encoded) that is compatible with the certificate that uses the signature (X.509 format file). \n\nWhen creating a certificate, you can specify the following: Name (CN), Organization (O), Organization Unit (OU), Country (C), State (ST), Locale (L), Serial Number, and Expiration Date. \nThe created certificate will be saved as an X.509 format file and the private key file will be saved in a Base 64 encoded RSA 2048 bit format file. \n\nThe MakeCert command is a tool that provides the most rudimentary function for creating certificates. If you want to create a more substantial certificate, we recommend that you use either free software such as OpenSSL, or commercial CA (certificate authority) software. \n\nNote: This command can be called from the SoftEther VPN Command Line Management Utility. You can also execute this command while connected to the current VPN Server or VPN Client in Administration Mode but, what actually performs the RSA computation, generates the certificate data and saves it to file is the computer on which the command is running, and all this is executed in a context that has absolutely no relationship to the computer that is the destination of the Administration Mode connection.
+CMD_MakeCert2048_Args		MakeCert2048 [/CN:cn] [/O:o] [/OU:ou] [/C:c] [/ST:st] [/L:l] [/SERIAL:serial] [/EXPIRES:expires] [/SIGNCERT:signcert] [/SIGNKEY:signkey] [/SAVECERT:savecert] [/SAVEKEY:savekey]
+CMD_MakeCert2048_CN			Specify the Name (CN) item of the certificate to create. You can specify "none".
+CMD_MakeCert2048_O			Specify the Organization (O) item of the certificate to create. You can specify "none".
+CMD_MakeCert2048_OU			Specify the Organization Unit (OU) item of the certificate to create. You can specify "none".
+CMD_MakeCert2048_C			Specify the Country (C) item of the certificate to create. You can specify "none".
+CMD_MakeCert2048_ST			Specify the State (ST) item of the certificate to create. You can specify "none".
+CMD_MakeCert2048_L			Specify the Locale (L) item of the certificate to create. You can specify "none".
+CMD_MakeCert2048_SERIAL		Specify the Serial Number item of the certificate to create. Specify using hexadecimal values. You can specify "none".
+CMD_MakeCert2048_EXPIRES	Specify the Expiration Date item of the certificate to create. If you specify "none" or "0", 3650 days (approx. 10 years) will be used. You can specify a maximum of 10950 days (about 30 years).
+CMD_MakeCert2048_SIGNCERT	For cases when the certificate to be created is signed by an existing certificate, specify the X.509 format certificate file name to be used to sign the signature. When this parameter is omitted, such signature signing is not performed and the new certificate is created as a root certificate.
+CMD_MakeCert2048_SIGNKEY	Specify a private key (RSA, base-64 encoded) that is compatible with the certificate specified by /SIGNCERT.
+CMD_MakeCert2048_SAVECERT	Specify the file name to save the certificate you created. The certificate is saved as an X.509 file that includes a public key that is RSA format 2048 bit.
+CMD_MakeCert2048_SAVEKEY	Specify the file name to save private key that is compatible with the certificate you created. The private key will be saved as an RSA-format 2048-bit private key file.
+
+
 # TrafficClient command
 CMD_TrafficClient		Run Network Traffic Speed Test Tool in Client Mode
 CMD_TrafficClient_Help	Use this to execute the communication throughput measurement tool's client program. \nTwo commands, TrafficClient and TrafficServer, are used for the communication throughput measurement tool to enable the measurement of communication throughput that can be transferred between two computers connected by IP network. The TrafficServer command is used first on another computer which puts the communication throughput measurement tool server in a listening condition. Then the TrafficClient command is used to connect to that server by specifying its host name or IP address and port number, which makes it possible to measure the communication speed. \nMeasurement of the communication speed is carried out by concurrently establishing multiple TCP connections and calculating the actual number of bits of data that can be transferred within a specified time based on the respective results of transferring the maximum stream data on each connection and then using that to calculate the average value (bps) of communication throughput. Normally when there is one TCP connection, it is common to only be able to achieve communication speeds slower than the actual net throughput because of limitations related to the TCP algorithm. We therefore recommend the establishment of multiple concurrent TCP connections when measuring communication results. Because the throughput that is measured using this measurement method is calculated from the bit length of the data that arrives on the receiver side as a stream by TCP, the packet loss that occurs during transfer and the packets with corrupted data are not included in the packets that actually arrive, which means it is possible to calculate a genuine value that is close to the maximum possible communication bandwidth of the network. \nUsing the measurement results, i.e. the stream size transferred by TCP, the approximate value of data volume that actually passed through the network is calculated and this is divided by time to calculate the bits per sec (bps). The calculation assumes the type of the physical network is Ethernet (IEEE802.3) and the MAC frame payload size is 1,500 bytes (TCP MSS is 1,460 bytes). By specifying the /RAW option, the calculation will not make corrections for the TCP/IP header and MAC header data volume. \n\nNote: This command can be called from the SoftEther VPN Command Line Management Utility. You can also execute this command while connected to the current VPN Server or VPN Client in Administration Mode but, what actually conducts communication and measures the throughput is the computer on which the command is running, and all this is executed in a context that has absolutely no relationship to the computer that is the destination of the Administration Mode connection.
@@ -6827,9 +6862,11 @@ CMD_TrafficClient_ERROR_HOSTPORT	The host name or port number is incorrectly spe
 
 # TrafficServer command
 CMD_TrafficServer		Run Network Traffic Speed Test Tool in Server Mode
-CMD_TrafficServer_Help	Use this to execute the communication throughput measurement tool's server program. \nTwo commands, TrafficClient and TrafficServer, are used for the communication throughput measurement tool to enable the measurement of communication throughput that can be transferred between two computers connected by IP network. \nTo set the TCP port of this computer to the Listen status to listen for the connection from the TrafficClient of another computer, specify the port number and start the server program using the TrafficServer command. \nYou can display more detailed information on the communication throughput measurement tool by inputting "TrafficClient /?". \n\nNote: This command can be called from the SoftEther VPN Command Line Management Utility. You can also execute this command while connected to the current VPN Server or VPN Client in Administration Mode but, what actually conducts communication and measures the throughput is the computer on which the command is running, and all this is executed in a context that has absolutely no relationship to the computer that is the destination of the Administration Mode connection.
-CMD_TrafficServer_Args	TrafficServer [port]
+CMD_TrafficServer_Help	Use this to execute the communication throughput measurement tool's server program. \nTwo commands, TrafficClient and TrafficServer, are used for the communication throughput measurement tool to enable the measurement of communication throughput that can be transferred between two computers connected by IP network. \nTo set the TCP port of this computer to the Listen status to listen for the connection from the TrafficClient of another computer, specify the port number and start the server program using the TrafficServer command. \nYou can display more detailed information on the communication throughput measurement tool by inputting "TrafficClient ?". \n\nNote: This command can be called from the SoftEther VPN Command Line Management Utility. You can also execute this command while connected to the current VPN Server or VPN Client in Administration Mode but, what actually conducts communication and measures the throughput is the computer on which the command is running, and all this is executed in a context that has absolutely no relationship to the computer that is the destination of the Administration Mode connection.
+CMD_TrafficServer_Args	TrafficServer [port] [/NOHUP:yes|no]
 CMD_TrafficServer_[port]	Specify, using an integer, the port number at which to listen for the connection. If the specified port has been already being used by another program, or if the port cannot be opened, an error will occur.
+CMD_TrafficServer_NOHUP		When "yes" is specified, the server process never stops without regard to any input from the console. It is convenient when you want to run the TrafficServer endlessly.
+
 
 
 # Internal message strings concerning TrafficClient / TrafficServer
@@ -7007,6 +7044,8 @@ SW_WEB_ERROR_MSG							Failed to create a VPN Client Web Installer.
 SW_INSTALLER_CACHE_IS_NOT_SIGNED			The currently installed SoftEther VPN Client of this computer has not been installed from the digital-signed package signed by an Authenticode digital certificate of SoftEther VPN Project.\r\nIt might be installed from a customized installer (for example, an installer created by Easy Installer Creator.)\r\n\r\nIf you continue to create a Web Installer, a warning message will be appeared on the user's screen when its loading.\r\nTo avoid showing the warning message, you should cancel this creating wizard, download the latest version of SoftEther VPN Client from the SoftEther VPN Project's web site, re-install it and restart the Web Installer Creator wizard.\r\n\r\nDo you really to continue to create a Web Installer?
 SW_FILE_NOT_FOUNT							The file "%s" not found.
 SW_WEB_FINISHED								The Web Installer is created and saved as "%s".\r\n\r\nPlease extract inner files from the ZIP file, upload them into the Web server, and edit a HTML file and an inf file to replace URLs appropriately.\r\n\r\nThe explanation to deploy the Web Installer is described on the ZIP file.
+
+SW_VG_CONFIRM_MSG							Do you really want to install and activate the VPN Gate P2P Relay Function plug-in module with SoftEther VPN Client?\r\n\r\nThis plug-in will realize the stability of communication to bypass the government censorship firewall. However, the communication of VPN Gate usually consumes some network bandwidth. VPN Gate is not recommended to be used in the mobile connections. \r\n\r\nPlease note that there are some countries and regions which have the regulation to forbid the encrypted communications to bypass government censorship firewalls. In such a case, you must not use the VPN Gate functions on your computer. VPN Gate is intended to be used mainly in Japan. VPN Gate is a research project for just academic purpose only. VPN Gate is governed under the Japanese laws. Other countries' laws are none of our concerns nor responsibilities. By using this software and service, you must observe all concerned laws and rules with your own responsibility. You will be completely liable to any damages and responsibilities which are results of using this software and service, regardless of either inside or outside of Japan's territory.
 
 
 

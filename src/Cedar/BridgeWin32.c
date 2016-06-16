@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -1341,9 +1356,9 @@ TOKEN_LIST *GetEthList()
 {
 	UINT v;
 
-	return GetEthListEx(&v);
+	return GetEthListEx(&v, true, false);
 }
-TOKEN_LIST *GetEthListEx(UINT *total_num_including_hidden)
+TOKEN_LIST *GetEthListEx(UINT *total_num_including_hidden, bool enum_normal, bool enum_rawip)
 {
 	TOKEN_LIST *ret;
 	UINT i;
@@ -1354,6 +1369,11 @@ TOKEN_LIST *GetEthListEx(UINT *total_num_including_hidden)
 	if (IsEthSupported() == false)
 	{
 		return NULL;
+	}
+
+	if (enum_normal == false)
+	{
+		return NullToken();
 	}
 
 	if (total_num_including_hidden == NULL)
@@ -1879,6 +1899,12 @@ bool IsPcdSupported()
 	UINT type;
 	OS_INFO *info = GetOsInfo();
 
+	if (MsIsWindows10())
+	{
+		// Windows 10 or later never supports PCD driver.
+		return false;
+	}
+
 	type = info->OsType;
 
 	if (OS_IS_WINDOWS_NT(type) == false)
@@ -1957,11 +1983,6 @@ HINSTANCE InstallPcdDriverInternal()
 			src_filename = BRIDGE_WIN32_PCD_SYS_X64;
 		}
 
-		if (MsIsIA64())
-		{
-			src_filename = BRIDGE_WIN32_PCD_SYS_IA64;
-		}
-
 		// Copy see.sys
 		if (FileCopy(src_filename, tmp) == false)
 		{
@@ -1979,10 +2000,6 @@ HINSTANCE InstallPcdDriverInternal()
 		if (MsIsX64())
 		{
 			dll_filename = BRIDGE_WIN32_PCD_DLL_X64;
-		}
-		else if (MsIsIA64())
-		{
-			dll_filename = BRIDGE_WIN32_PCD_DLL_IA64;
 		}
 	}
 
@@ -2127,7 +2144,7 @@ RELEASE:
 		return false;
 	}
 
-	o = GetEthListEx(&total_num);
+	o = GetEthListEx(&total_num, true, false);
 	if (o == NULL || total_num == 0)
 	{
 		FreeToken(o);

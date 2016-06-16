@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -112,7 +127,11 @@ static char *delete_targets[] =
 	"server_log",
 	"bridge_log",
 	"packet_log_archive",
+	"azure_log",
 };
+
+static UINT eraser_check_interval = DISK_FREE_CHECK_INTERVAL_DEFAULT;
+static UINT64 logger_max_log_size = MAX_LOG_SIZE_DEFAULT;
 
 // Send with syslog
 void SendSysLog(SLOG *g, wchar_t *str)
@@ -464,8 +483,34 @@ void EraserThread(THREAD *t, void *p)
 		// Check the amount of free space on the disk periodically
 		EraserMain(e);
 
-		Wait(e->HaltEvent, DISK_FREE_CHECK_INTERVAL);
+		Wait(e->HaltEvent, GetEraserCheckInterval());
 	}
+}
+
+// Set the interval for disk free space check
+void SetEraserCheckInterval(UINT interval)
+{
+	if (interval == 0)
+	{
+		eraser_check_interval = DISK_FREE_CHECK_INTERVAL_DEFAULT;
+	}
+	else
+	{
+		eraser_check_interval = interval * 1000;
+	}
+}
+
+// Get the interval for disk free space check
+UINT GetEraserCheckInterval()
+{
+	UINT ret = eraser_check_interval / 1000;
+
+	if (ret == 0)
+	{
+		ret = 1;
+	}
+
+	return ret;
 }
 
 // Create a new eraser
@@ -1016,6 +1061,7 @@ bool PacketLog(HUB *hub, SESSION *src_session, SESSION *dest_session, PKT *packe
 	SERVER *s;
 	UINT syslog_setting;
 	bool no_log = false;
+	HUB_OPTION *opt = NULL;
 	// Validate arguments
 	if (hub == NULL || src_session == NULL || packet == NULL)
 	{
@@ -1030,11 +1076,13 @@ bool PacketLog(HUB *hub, SESSION *src_session, SESSION *dest_session, PKT *packe
 		return true;
 	}
 
-	if (Cmp(hub->HubMacAddr, packet->MacAddressSrc, 6) == 0 ||
-		Cmp(hub->HubMacAddr, packet->MacAddressDest, 6) == 0)
+	if (memcmp(hub->HubMacAddr, packet->MacAddressSrc, 6) == 0 ||
+		memcmp(hub->HubMacAddr, packet->MacAddressDest, 6) == 0)
 	{
 		return true;
 	}
+
+	opt = hub->Option;
 
 	// Determine the logging level
 	level = CalcPacketLoggingLevel(hub, packet);
@@ -1108,6 +1156,21 @@ bool PacketLog(HUB *hub, SESSION *src_session, SESSION *dest_session, PKT *packe
 	else
 	{
 		pl->DestSessionName = CopyStr("");
+	}
+
+	if (opt == NULL || opt->NoPhysicalIPOnPacketLog == false)
+	{
+		if (src_session != NULL && src_session->NormalClient)
+		{
+			StrCpy(pl->SrcPhysicalIP, sizeof(pl->SrcPhysicalIP), src_session->ClientIP);
+		}
+
+		if (dest_session != NULL && dest_session->NormalClient)
+		{
+			StrCpy(pl->DestPhysicalIP, sizeof(pl->DestPhysicalIP), dest_session->ClientIP);
+		}
+
+		pl->WritePhysicalIP = true;
 	}
 
 	if (src_session->LoggingRecordCount != NULL)
@@ -1333,16 +1396,23 @@ char *BuildHttpLogStr(HTTPLOG *h)
 
 	b = NewBuf();
 
-	// URL generation
-	if (h->Port == 80)
+	if (StartWith(h->Path, "http://"))
 	{
-		Format(url, sizeof(url), "http://%s%s",
-			h->Hostname, h->Path);
+		StrCpy(url, sizeof(url), h->Path);
 	}
 	else
 	{
-		Format(url, sizeof(url), "http://%s:%u%s",
-			h->Hostname, h->Port, h->Path);
+		// URL generation
+		if (h->Port == 80)
+		{
+			Format(url, sizeof(url), "http://%s%s",
+				h->Hostname, h->Path);
+		}
+		else
+		{
+			Format(url, sizeof(url), "http://%s:%u%s",
+				h->Hostname, h->Port, h->Path);
+		}
 	}
 
 	AddLogBufToStr(b, "HttpMethod", h->Method);
@@ -1441,6 +1511,10 @@ char *PacketLogParseProc(RECORD *rec)
 	// Generate each part
 	t = ZeroMalloc(sizeof(TOKEN_LIST));
 	t->NumTokens = 16;
+	if (pl->WritePhysicalIP)
+	{
+		t->NumTokens += 2;
+	}
 	t->Token = ZeroMalloc(sizeof(char *) * t->NumTokens);
 
 	// Source session
@@ -1976,6 +2050,16 @@ char *PacketLogParseProc(RECORD *rec)
 			BinToStr(data, p->PacketSize * 2 + 1, p->PacketData, p->PacketSize);
 			t->Token[15] = data;
 		}
+
+		// Physical IP addresses
+		if (StrLen(pl->SrcPhysicalIP) != 0)
+		{
+			t->Token[16] = CopyStr(pl->SrcPhysicalIP);
+		}
+		if (StrLen(pl->DestPhysicalIP) != 0)
+		{
+			t->Token[17] = CopyStr(pl->DestPhysicalIP);
+		}
 	}
 	else
 	{
@@ -2378,7 +2462,49 @@ bool MakeLogFileName(LOG *g, char *name, UINT size, char *dir, char *prefix, UIN
 	}
 	else
 	{
-		snprintf(tmp2, sizeof(tmp2), "~%02u", num);
+		UINT64 max_log_size = GetMaxLogSize();
+		if (max_log_size == MAX_LOG_SIZE_DEFAULT)
+		{
+			snprintf(tmp2, sizeof(tmp2), "~%02u", num);
+		}
+		else
+		{
+			char tag[32];
+			char c = '2';
+			if (max_log_size >= 1000000000ULL)
+			{
+				c = '3';
+			}
+			else if (max_log_size >= 100000000ULL)
+			{
+				c = '4';
+			}
+			else if (max_log_size >= 10000000ULL)
+			{
+				c = '5';
+			}
+			else if (max_log_size >= 1000000ULL)
+			{
+				c = '6';
+			}
+			else if (max_log_size >= 100000ULL)
+			{
+				c = '7';
+			}
+			else if (max_log_size >= 10000ULL)
+			{
+				c = '8';
+			}
+			else if (max_log_size >= 1000ULL)
+			{
+				c = '9';
+			}
+
+			StrCpy(tag, sizeof(tag), "~%02u");
+			tag[3] = c;
+
+			snprintf(tmp2, sizeof(tmp2), tag, num);
+		}
 	}
 
 	if (strcmp(old_datestr, tmp) != 0)
@@ -2420,6 +2546,30 @@ void WaitLogFlush(LOG *g)
 
 		Wait(g->FlushEvent, 100);
 	}
+}
+
+// Set the max log size
+void SetMaxLogSize(UINT64 size)
+{
+	if (size == 0)
+	{
+		size = MAX_LOG_SIZE_DEFAULT;
+	}
+
+	logger_max_log_size = size;
+}
+
+// Get the max log size
+UINT64 GetMaxLogSize()
+{
+	UINT64 ret = logger_max_log_size;
+
+	if (ret == 0)
+	{
+		ret = MAX_LOG_SIZE_DEFAULT;
+	}
+
+	return ret;
 }
 
 // Logging thread
@@ -2498,7 +2648,7 @@ void LogThread(THREAD *thread, void *param)
 			}
 #endif	// OS_WIN32
 
-			if (b->Size > g->MaxLogFileSize)
+			if (b->Size > GetMaxLogSize())
 			{
 				// Erase if the size of the buffer is larger than the maximum log file size
 				ClearBuf(b);
@@ -2509,7 +2659,7 @@ void LogThread(THREAD *thread, void *param)
 				// Write the contents of the buffer to the file
 				if (io != NULL)
 				{
-					if ((g->CurrentFilePointer + (UINT64)b->Size) > g->MaxLogFileSize)
+					if ((g->CurrentFilePointer + (UINT64)b->Size) > GetMaxLogSize())
 					{
 						if (g->log_number_incremented == false)
 						{
@@ -2543,7 +2693,7 @@ void LogThread(THREAD *thread, void *param)
 					// Write the contents of the buffer to the file
 					if (io != NULL)
 					{
-						if ((g->CurrentFilePointer + (UINT64)b->Size) > g->MaxLogFileSize)
+						if ((g->CurrentFilePointer + (UINT64)b->Size) > GetMaxLogSize())
 						{
 							if (g->log_number_incremented == false)
 							{
@@ -2615,7 +2765,7 @@ void LogThread(THREAD *thread, void *param)
 					{
 						if (log_date_changed)
 						{
-							if ((g->CurrentFilePointer + (UINT64)b->Size) <= g->MaxLogFileSize)
+							if ((g->CurrentFilePointer + (UINT64)b->Size) <= GetMaxLogSize())
 							{
 								if (FileWrite(io, b->Buf, b->Size) == false)
 								{
@@ -2841,7 +2991,6 @@ LOG *NewLog(char *dir, char *prefix, UINT switch_type)
 	g->SwitchType = switch_type;
 	g->RecordQueue = NewQueue();
 	g->Event = NewEvent();
-	g->MaxLogFileSize = MAX_LOG_SIZE;
 	g->FlushEvent = NewEvent();
 
 	g->Thread = NewThread(LogThread, g);

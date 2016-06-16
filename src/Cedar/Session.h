@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -152,7 +167,12 @@ struct PACKET_ADAPTER
 	PA_PUTPACKET *PutPacket;
 	PA_FREE *Free;
 	void *Param;
+	UINT Id;
 };
+
+// Packet Adapter IDs
+#define	PACKET_ADAPTER_ID_VLAN_WIN32		1
+
 
 // Session structure
 struct SESSION
@@ -173,6 +193,7 @@ struct SESSION
 	bool InProcMode;				// In-process mode
 	THREAD *Thread;					// Management thread
 	CONNECTION *Connection;			// Connection
+	char ClientIP[64];				// Client IP
 	CLIENT_OPTION *ClientOption;	// Client connection options
 	CLIENT_AUTH *ClientAuth;		// Client authentication data
 	volatile bool Halt;				// Halting flag
@@ -213,8 +234,11 @@ struct SESSION
 	UCHAR IpcMacAddress[6];			// MAC address for IPC
 	UCHAR Padding[2];
 
+	IP ServerIP_CacheForNextConnect;	// Server IP, cached for next connect
+
 	UINT64 CreatedTime;				// Creation date and time
 	UINT64 LastCommTime;			// Last communication date and time
+	UINT64 LastCommTimeForDormant;	// Last communication date and time (for dormant)
 	TRAFFIC *Traffic;				// Traffic data
 	TRAFFIC *OldTraffic;			// Old traffic data
 	UINT64 TotalSendSize;			// Total transmitted data size
@@ -245,6 +269,7 @@ struct SESSION
 	UINT64 CurrentConnectionEstablishTime;	// Completion time of this connection
 	UINT NumConnectionsEatablished;	// Number of connections established so far
 	UINT AdjustMss;					// MSS adjustment value
+	bool IsVPNClientAndVLAN_Win32;	// Is the VPN Client session with a VLAN card (Win32)
 
 	bool IsRUDPSession;				// Whether R-UDP session
 	UINT RUdpMss;					// The value of the MSS should be applied while the R-UDP is used
@@ -397,6 +422,7 @@ void NewSessionKey(CEDAR *cedar, UCHAR *session_key, UINT *session_key_32);
 SESSION *GetSessionFromKey(CEDAR *cedar, UCHAR *session_key);
 SESSION *GetSessionFromKey32(CEDAR *cedar, UINT key32);
 void DebugPrintSessionKey(UCHAR *session_key);
+bool IsIpcMacAddress(UCHAR *mac);
 void ClientAdditionalConnectChance(SESSION *s);
 void SessionAdditionalConnect(SESSION *s);
 void ClientAdditionalThread(THREAD *t, void *param);

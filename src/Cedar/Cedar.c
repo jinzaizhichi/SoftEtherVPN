@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -102,6 +117,34 @@
 static UINT init_cedar_counter = 0;
 static REF *cedar_log_ref = NULL;
 static LOG *cedar_log;
+
+// Check whether there is any EAP-enabled RADIUS configuration
+bool CedarIsThereAnyEapEnabledRadiusConfig(CEDAR *c)
+{
+	bool ret = false;
+	UINT i;
+	if (c == NULL)
+	{
+		return false;
+	}
+
+	LockHubList(c);
+	{
+		for (i = 0;i < LIST_NUM(c->HubList);i++)
+		{
+			HUB *hub = LIST_DATA(c->HubList, i);
+
+			if (hub->RadiusConvertAllMsChapv2AuthRequestToEap)
+			{
+				ret = true;
+				break;
+			}
+		}
+	}
+	UnlockHubList(c);
+
+	return ret;
+}
 
 // Get build date of current code
 UINT64 GetCurrentBuildDate()
@@ -217,6 +260,19 @@ bool IsSupportedWinVer(RPC_WINVER *v)
 		{
 			// SP0 only
 			return true;
+		}
+	}
+
+	if ((v->VerMajor == 6 && v->VerMinor == 4) || (v->VerMajor == 10 && v->VerMinor == 0))
+	{
+		if (v->IsServer == false)
+		{
+			// Windows 10 (not Windows Server 2016)
+			if (v->ServicePack <= 0)
+			{
+				// SP0 only
+				return true;
+			}
 		}
 	}
 
@@ -880,6 +936,8 @@ void AddConnection(CEDAR *cedar, CONNECTION *c)
 	// Determine the name of the connection
 	i = Inc(cedar->ConnectionIncrement);
 	Format(tmp, sizeof(tmp), "CID-%u", i);
+
+
 	Lock(c->lock);
 	{
 		Free(c->Name);
@@ -1134,6 +1192,118 @@ void StopAllListener(CEDAR *c)
 	Free(array);
 }
 
+// Budget management functions
+void CedarAddQueueBudget(CEDAR *c, int diff)
+{
+	// Validate arguments
+	if (c == NULL || diff == 0)
+	{
+		return;
+	}
+
+	Lock(c->QueueBudgetLock);
+	{
+		int v = (int)c->QueueBudget;
+		v += diff;
+		c->QueueBudget = (UINT)v;
+	}
+	Unlock(c->QueueBudgetLock);
+}
+void CedarAddFifoBudget(CEDAR *c, int diff)
+{
+	// Validate arguments
+	if (c == NULL || diff == 0)
+	{
+		return;
+	}
+
+	Lock(c->FifoBudgetLock);
+	{
+		int v = (int)c->FifoBudget;
+		v += diff;
+		c->FifoBudget = (UINT)v;
+	}
+	Unlock(c->FifoBudgetLock);
+}
+UINT CedarGetQueueBudgetConsuming(CEDAR *c)
+{
+	// Validate arguments
+	if (c == NULL)
+	{
+		return 0;
+	}
+
+	return c->QueueBudget;
+}
+UINT CedarGetFifoBudgetConsuming(CEDAR *c)
+{
+	// Validate arguments
+	if (c == NULL)
+	{
+		return 0;
+	}
+
+	return c->FifoBudget;
+}
+UINT CedarGetQueueBudgetBalance(CEDAR *c)
+{
+	UINT current = CedarGetQueueBudgetConsuming(c);
+	UINT budget = QUEUE_BUDGET;
+
+	if (current <= budget)
+	{
+		return budget - current;
+	}
+	else
+	{
+		return 0;
+	}
+}
+UINT CedarGetFifoBudgetBalance(CEDAR *c)
+{
+	UINT current = CedarGetFifoBudgetConsuming(c);
+	UINT budget = FIFO_BUDGET;
+
+	if (current <= budget)
+	{
+		return budget - current;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+// Add the current TCP queue size
+void CedarAddCurrentTcpQueueSize(CEDAR *c, int diff)
+{
+	// Validate arguments
+	if (c == NULL || diff == 0)
+	{
+		return;
+	}
+
+	Lock(c->CurrentTcpQueueSizeLock);
+	{
+		int v = (int)c->CurrentTcpQueueSize;
+		v += diff;
+		c->CurrentTcpQueueSize = (UINT)v;
+	}
+	Unlock(c->CurrentTcpQueueSizeLock);
+}
+
+// Get the current TCP queue size
+UINT CedarGetCurrentTcpQueueSize(CEDAR *c)
+{
+	// Validate arguments
+	if (c == NULL)
+	{
+		return 0;
+	}
+
+	return c->CurrentTcpQueueSize;
+}
+
 // Stop Cedar
 void StopCedar(CEDAR *c)
 {
@@ -1253,6 +1423,12 @@ void CleanupCedar(CEDAR *c)
 	DeleteLock(c->OpenVPNPublicPortsLock);
 
 	DeleteLock(c->CurrentRegionLock);
+
+	DeleteLock(c->CurrentTcpQueueSizeLock);
+	DeleteLock(c->QueueBudgetLock);
+	DeleteLock(c->FifoBudgetLock);
+
+	DeleteCounter(c->CurrentActiveLinks);
 
 	Free(c);
 }
@@ -1509,11 +1685,15 @@ CEDAR *NewCedar(X *server_x, K *server_k)
 
 	c = ZeroMalloc(sizeof(CEDAR));
 
+	c->CurrentActiveLinks = NewCounter();
+
 	c->AcceptingSockets = NewCounter();
 
 	c->CedarSuperLock = NewLock();
 
 	c->CurrentRegionLock = NewLock();
+
+	StrCpy(c->OpenVPNDefaultClientOption, sizeof(c->OpenVPNDefaultClientOption), OVPN_DEF_CLIENT_OPTION_STRING);
 
 #ifdef	BETA_NUMBER
 	c->Beta = BETA_NUMBER;
@@ -1523,6 +1703,10 @@ CEDAR *NewCedar(X *server_x, K *server_k)
 
 	c->AssignedBridgeLicense = NewCounter();
 	c->AssignedClientLicense = NewCounter();
+
+	c->CurrentTcpQueueSizeLock = NewLock();
+	c->QueueBudgetLock = NewLock();
+	c->FifoBudgetLock = NewLock();
 
 	Rand(c->UniqueId, sizeof(c->UniqueId));
 

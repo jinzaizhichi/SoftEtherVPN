@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -179,7 +194,15 @@ struct UPDATE_CLIENT
 #define	UPDATE_CONNECT_TIMEOUT			5000
 #define	UPDATE_COMM_TIMEOUT				5000
 
+// Dynamic root cert fetch function
+#define	CERT_HTTP_DOWNLOAD_MAXSIZE	65536
+#define	CERT_HTTP_DOWNLOAD_TIMEOUT	(10 * 1000)
+#define	ROOT_CERTS_FILENAME			"|root_certs.dat"
+#define	AUTO_DOWNLOAD_CERTS_PREFIX	L".autodownload_"
+#define	FIND_CERT_CHAIN_MAX_DEPTH	16
 
+#define	PROTO_SUPPRESS_CLIENT_UPDATE_NOTIFICATION_REGKEY	"Software\\" GC_REG_COMPANY_NAME "\\" CEDAR_PRODUCT_STR " VPN\\Client Update Notification"
+#define	PROTO_SUPPRESS_CLIENT_UPDATE_NOTIFICATION_REGVALUE	"Suppress"
 
 // Function prototype
 UPDATE_CLIENT *NewUpdateClient(UPDATE_NOTIFY_PROC *cb, UPDATE_ISFOREGROUND_PROC *isforeground_cb, void *param, char *family_name, char *software_name, wchar_t *software_title, UINT my_build, UINT64 my_date, char *my_lang, UPDATE_CLIENT_SETTING *current_setting, char *client_id);
@@ -195,7 +218,7 @@ bool ServerAccept(CONNECTION *c);
 bool ClientConnect(CONNECTION *c);
 SOCK *ClientConnectToServer(CONNECTION *c);
 SOCK *TcpIpConnect(char *hostname, UINT port, bool try_start_ssl, bool ssl_no_tls);
-SOCK *TcpIpConnectEx(char *hostname, UINT port, bool *cancel_flag, void *hWnd, UINT *nat_t_error_code, bool no_nat_t, bool try_start_ssl, bool ssl_no_tls);
+SOCK *TcpIpConnectEx(char *hostname, UINT port, bool *cancel_flag, void *hWnd, UINT *nat_t_error_code, bool no_nat_t, bool try_start_ssl, bool ssl_no_tls, IP *ret_ip);
 bool ClientUploadSignature(SOCK *s);
 bool ClientDownloadHello(CONNECTION *c, SOCK *s);
 bool ServerDownloadSignature(CONNECTION *c, char **error_detail_str);
@@ -203,7 +226,7 @@ bool ServerUploadHello(CONNECTION *c);
 bool ClientUploadAuth(CONNECTION *c);
 SOCK *ClientConnectGetSocket(CONNECTION *c, bool additional_connect, bool no_tls);
 SOCK *TcpConnectEx2(char *hostname, UINT port, UINT timeout, bool *cancel_flag, void *hWnd, bool try_start_ssl, bool ssl_no_tls);
-SOCK *TcpConnectEx3(char *hostname, UINT port, UINT timeout, bool *cancel_flag, void *hWnd, bool no_nat_t, UINT *nat_t_error_code, bool try_start_ssl, bool ssl_no_tls);
+SOCK *TcpConnectEx3(char *hostname, UINT port, UINT timeout, bool *cancel_flag, void *hWnd, bool no_nat_t, UINT *nat_t_error_code, bool try_start_ssl, bool ssl_no_tls, IP *ret_ip);
 
 void InitProtocol();
 void FreeProtocol();
@@ -257,7 +280,7 @@ SOCK *SocksConnectEx(CONNECTION *c, char *proxy_host_name, UINT proxy_port,
 SOCK *SocksConnectEx2(CONNECTION *c, char *proxy_host_name, UINT proxy_port,
 					 char *server_host_name, UINT server_port,
 					 char *username, bool additional_connect,
-					 bool *cancel_flag, void *hWnd, UINT timeout);
+					 bool *cancel_flag, void *hWnd, UINT timeout, IP *ret_ip);
 bool SocksSendRequestPacket(CONNECTION *c, SOCK *s, UINT dest_port, IP *dest_ip, char *userid);
 bool SocksRecvResponsePacket(CONNECTION *c, SOCK *s);
 void CreateNodeInfo(NODE_INFO *info, CONNECTION *c);
@@ -276,6 +299,18 @@ UINT ChangePassword(CEDAR *cedar, CLIENT_OPTION *o, char *hubname, char *usernam
 void PackAddClientVersion(PACK *p, CONNECTION *c);
 void NodeInfoToStr(wchar_t *str, UINT size, NODE_INFO *info);
 void GenerateMachineUniqueHash(void *data);
+
+LIST *NewCertList(bool load_root_and_chain);
+void FreeCertList(LIST *o);
+bool IsXInCertList(LIST *o, X *x);
+void AddXToCertList(LIST *o, X *x);
+void AddAllRootCertsToCertList(LIST *o);
+void AddAllChainCertsToCertList(LIST *o);
+X *DownloadCert(char *url);
+X *FindCertIssuerFromCertList(LIST *o, X *x);
+bool TryGetRootCertChain(LIST *o, X *x, bool auto_save, X **found_root_x);
+bool TryGetParentCertFromCertList(LIST *o, X *x, LIST *found_chain);
+bool DownloadAndSaveIntermediateCertificatesIfNecessary(X *x);
 
 
 #endif	// PROTOCOL_H

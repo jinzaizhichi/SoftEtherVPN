@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -503,7 +518,7 @@ UINT DCRegister(DDNS_CLIENT *c, bool ipv6, DDNS_REGISTER_PARAM *p, char *replace
 	UCHAR machine_key[SHA1_SIZE];
 	char machine_key_str[MAX_SIZE];
 	char machine_name[MAX_SIZE];
-	BUF *cert_hash;
+	BUF *cert_hash = NULL;
 	UINT err = ERR_INTERNAL_ERROR;
 	UCHAR key_hash[SHA1_SIZE];
 	char key_hash_str[MAX_SIZE];
@@ -513,11 +528,17 @@ UINT DCRegister(DDNS_CLIENT *c, bool ipv6, DDNS_REGISTER_PARAM *p, char *replace
 	UINT build = 0;
 	bool use_https = false;
 	bool use_vgs = false;
+	bool no_cert_verify = false;
+	char add_header_name[64];
+	char add_header_value[64];
 	// Validate arguments
 	if (c == NULL)
 	{
 		return ERR_INTERNAL_ERROR;
 	}
+
+	Zero(add_header_name, sizeof(add_header_name));
+	Zero(add_header_value, sizeof(add_header_value));
 
 	Zero(current_azure_ip, sizeof(current_azure_ip));
 
@@ -627,10 +648,8 @@ UINT DCRegister(DDNS_CLIENT *c, bool ipv6, DDNS_REGISTER_PARAM *p, char *replace
 
 
 
-	cert_hash = StrToBin(DDNS_CERT_HASH);
-
 	Format(url2, sizeof(url2), "%s?v=%I64u", url, Rand64());
-	Format(url3, sizeof(url3), url2, key_hash_str[0], key_hash_str[1], key_hash_str[2], key_hash_str[3]);
+	Format(url3, sizeof(url3), url2, key_hash_str[2], key_hash_str[3]);
 
 	if (use_https == false)
 	{
@@ -639,10 +658,23 @@ UINT DCRegister(DDNS_CLIENT *c, bool ipv6, DDNS_REGISTER_PARAM *p, char *replace
 
 	ReplaceStr(url3, sizeof(url3), url3, ".servers", ".open.servers");
 
-	Debug("WpcCall: %s\n", url3);
-	ret = WpcCallEx(url3, &t, DDNS_CONNECT_TIMEOUT, DDNS_COMM_TIMEOUT, "register", req,
-		NULL, NULL, ((cert_hash != NULL && cert_hash->Size == SHA1_SIZE) ? cert_hash->Buf : NULL), NULL, DDNS_RPC_MAX_RECV_SIZE);
-	Debug("WpcCall Ret: %u\n", ret);
+
+	if (no_cert_verify == false)
+	{
+		cert_hash = StrToBin(DDNS_CERT_HASH);
+	}
+
+	ret = NULL;
+
+
+	if (ret == NULL)
+	{
+		Debug("WpcCall: %s\n", url3);
+		ret = WpcCallEx(url3, &t, DDNS_CONNECT_TIMEOUT, DDNS_COMM_TIMEOUT, "register", req,
+			NULL, NULL, ((cert_hash != NULL && cert_hash->Size == SHA1_SIZE) ? cert_hash->Buf : NULL), NULL, DDNS_RPC_MAX_RECV_SIZE,
+			add_header_name, add_header_value);
+		Debug("WpcCall Ret: %u\n", ret);
+	}
 
 	FreeBuf(cert_hash);
 
@@ -791,7 +823,8 @@ UINT DCGetMyIpMain(DDNS_CLIENT *c, bool ipv6, char *dst, UINT dst_size, bool use
 	UINT ret = ERR_INTERNAL_ERROR;
 	URL_DATA data;
 	BUF *recv;
-	BUF *cert_hash;
+	BUF *cert_hash = NULL;
+	bool no_cert_verify = false;
 	// Validate arguments
 	if (dst == NULL || c == NULL)
 	{
@@ -829,12 +862,17 @@ UINT DCGetMyIpMain(DDNS_CLIENT *c, bool ipv6, char *dst, UINT dst_size, bool use
 		ReplaceStr(url2, sizeof(url2), url2, "http://", "https://");
 	}
 
+
 	if (ParseUrl(&data, url2, false, NULL) == false)
 	{
 		return ERR_INTERNAL_ERROR;
 	}
 
-	cert_hash = StrToBin(DDNS_CERT_HASH);
+	if (no_cert_verify == false)
+	{
+		cert_hash = StrToBin(DDNS_CERT_HASH);
+	}
+
 
 	recv = HttpRequest(&data, (ipv6 ? NULL : &c->InternetSetting), DDNS_CONNECT_TIMEOUT, DDNS_COMM_TIMEOUT, &ret, false, NULL, NULL,
 		NULL, ((cert_hash != NULL && cert_hash->Size == SHA1_SIZE) ? cert_hash->Buf : NULL));
@@ -888,6 +926,7 @@ UINT DCGetMyIpMain(DDNS_CLIENT *c, bool ipv6, char *dst, UINT dst_size, bool use
 
 	return ret;
 }
+
 
 // Creating a DDNS client
 DDNS_CLIENT *NewDDNSClient(CEDAR *cedar, UCHAR *key, INTERNET_SETTING *t)

@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -54,10 +54,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -278,7 +293,7 @@ bool SaveLangConfig(wchar_t *filename, char *str)
 		FreeLangList(o);
 	}
 
-	ret = DumpBufW(b, filename);
+	ret = DumpBufWIfNecessary(b, filename);
 
 	FreeBuf(b);
 
@@ -546,6 +561,13 @@ LIST *LoadLangList()
 	LIST *o = NewListFast(NULL);
 	char *filename = LANGLIST_FILENAME;
 	BUF *b;
+
+#ifdef	OS_WIN32
+	if (MsIsWine())
+	{
+		filename = LANGLIST_FILENAME_WINE;
+	}
+#endif	// OS_WIN32
 
 	b = ReadDump(filename);
 	if (b == NULL)
@@ -1409,11 +1431,11 @@ bool LoadTableMain(wchar_t *filename)
 
 		SaveUnicodeCache(filename, b->Size, hash);
 
-		Debug("Unicode Source: strtable.stb\n");
+		//Debug("Unicode Source: strtable.stb\n");
 	}
 	else
 	{
-		Debug("Unicode Source: unicode_cache\n");
+		//Debug("Unicode Source: unicode_cache\n");
 	}
 
 	FreeBuf(b);
@@ -1434,7 +1456,7 @@ bool LoadTableMain(wchar_t *filename)
 		return false;
 	}
 
-	Debug("Unicode File Read Cost: %u (%u Lines)\n", (UINT)(t2 - t1), LIST_NUM(TableList));
+	//Debug("Unicode File Read Cost: %u (%u Lines)\n", (UINT)(t2 - t1), LIST_NUM(TableList));
 
 	return true;
 }

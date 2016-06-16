@@ -3,9 +3,9 @@
 // 
 // SoftEther VPN Server, Client and Bridge are free software under GPLv2.
 // 
-// Copyright (c) 2012-2014 Daiyuu Nobori.
-// Copyright (c) 2012-2014 SoftEther VPN Project, University of Tsukuba, Japan.
-// Copyright (c) 2012-2014 SoftEther Corporation.
+// Copyright (c) 2012-2016 Daiyuu Nobori.
+// Copyright (c) 2012-2016 SoftEther VPN Project, University of Tsukuba, Japan.
+// Copyright (c) 2012-2016 SoftEther Corporation.
 // 
 // All Rights Reserved.
 // 
@@ -56,10 +56,25 @@
 // AND FORUM NON CONVENIENS. PROCESS MAY BE SERVED ON EITHER PARTY IN
 // THE MANNER AUTHORIZED BY APPLICABLE LAW OR COURT RULE.
 // 
-// USE ONLY IN JAPAN. DO NOT USE IT IN OTHER COUNTRIES. IMPORTING THIS
-// SOFTWARE INTO OTHER COUNTRIES IS AT YOUR OWN RISK. SOME COUNTRIES
-// PROHIBIT ENCRYPTED COMMUNICATIONS. USING THIS SOFTWARE IN OTHER
-// COUNTRIES MIGHT BE RESTRICTED.
+// USE ONLY IN JAPAN. DO NOT USE THIS SOFTWARE IN ANOTHER COUNTRY UNLESS
+// YOU HAVE A CONFIRMATION THAT THIS SOFTWARE DOES NOT VIOLATE ANY
+// CRIMINAL LAWS OR CIVIL RIGHTS IN THAT PARTICULAR COUNTRY. USING THIS
+// SOFTWARE IN OTHER COUNTRIES IS COMPLETELY AT YOUR OWN RISK. THE
+// SOFTETHER VPN PROJECT HAS DEVELOPED AND DISTRIBUTED THIS SOFTWARE TO
+// COMPLY ONLY WITH THE JAPANESE LAWS AND EXISTING CIVIL RIGHTS INCLUDING
+// PATENTS WHICH ARE SUBJECTS APPLY IN JAPAN. OTHER COUNTRIES' LAWS OR
+// CIVIL RIGHTS ARE NONE OF OUR CONCERNS NOR RESPONSIBILITIES. WE HAVE
+// NEVER INVESTIGATED ANY CRIMINAL REGULATIONS, CIVIL LAWS OR
+// INTELLECTUAL PROPERTY RIGHTS INCLUDING PATENTS IN ANY OF OTHER 200+
+// COUNTRIES AND TERRITORIES. BY NATURE, THERE ARE 200+ REGIONS IN THE
+// WORLD, WITH DIFFERENT LAWS. IT IS IMPOSSIBLE TO VERIFY EVERY
+// COUNTRIES' LAWS, REGULATIONS AND CIVIL RIGHTS TO MAKE THE SOFTWARE
+// COMPLY WITH ALL COUNTRIES' LAWS BY THE PROJECT. EVEN IF YOU WILL BE
+// SUED BY A PRIVATE ENTITY OR BE DAMAGED BY A PUBLIC SERVANT IN YOUR
+// COUNTRY, THE DEVELOPERS OF THIS SOFTWARE WILL NEVER BE LIABLE TO
+// RECOVER OR COMPENSATE SUCH DAMAGES, CRIMINAL OR CIVIL
+// RESPONSIBILITIES. NOTE THAT THIS LINE IS NOT LICENSE RESTRICTION BUT
+// JUST A STATEMENT FOR WARNING AND DISCLAIMER.
 // 
 // 
 // SOURCE CODE CONTRIBUTION
@@ -5852,7 +5867,6 @@ REMOTE_CLIENT *CcConnectRpcEx(char *server_name, char *password, bool *bad_pass,
 #endif	// OS_WIN32
 
 	port_start = CLIENT_CONFIG_PORT - 1;
-
 	if (reg_port != 0)
 	{
 		s = Connect(server_name, reg_port);
@@ -8436,7 +8450,7 @@ bool CtCreateVLan(CLIENT *c, RPC_CLIENT_CREATE_VLAN *create)
 		return false;
 	}
 
-	// Regulation in Windows 8
+	// Regulation in Windows 8 / 10
 	if (MsIsInfCatalogRequired())
 	{
 		if (CiIsValidVLanRegulatedName(create->DeviceName) == false)
@@ -10448,7 +10462,7 @@ void CiWriteSettingToCfg(CLIENT *c, FOLDER *root)
 }
 
 // Create the inner VPN Server
-SERVER *CiNewInnerVPNServer(CLIENT *c)
+SERVER *CiNewInnerVPNServer(CLIENT *c, bool relay_server)
 {
 	SERVER *s = NULL;
 	// Validate arguments
@@ -10459,7 +10473,7 @@ SERVER *CiNewInnerVPNServer(CLIENT *c)
 
 	SetNatTLowPriority();
 
-	s = SiNewServerEx(false, true);
+	s = SiNewServerEx(false, true, relay_server);
 
 	return s;
 }
@@ -10575,6 +10589,13 @@ CLIENT *CiNewClient()
 		ci_active_sessions_lock = NewLock();
 		ci_num_active_sessions = 0;
 	}
+
+#ifdef	OS_WIN32
+	if (MsIsWindows7())
+	{
+		c->MsSuspendHandler = MsNewSuspendHandler();
+	}
+#endif	// OS_WIN32
 
 
 	c->CmSetting = ZeroMalloc(sizeof(CM_SETTING));
@@ -10796,6 +10817,13 @@ void CiCleanupClient(CLIENT *c)
 
 	Free(c->CmSetting);
 
+
+#ifdef	OS_WIN32
+	if (c->MsSuspendHandler != NULL)
+	{
+		MsFreeSuspendHandler(c->MsSuspendHandler);
+	}
+#endif	// OS_WIN32
 
 	Free(c);
 
